@@ -8,6 +8,16 @@
     
     - 実習ではRを用います。
 
+講義アーカイブ
+
+- 以下のどちらかを実行
+
+    - [ローカル環境: RとRstudiのインストール](https://youtu.be/fDlXx8e5W78)
+    
+    - [クラウド環境: Rcloudへの登録](https://youtu.be/yF6NxxvpzjE)
+
+- [ローカル環境: Project forlderの作成とデータの格納](https://youtu.be/f2EU44WFyQM)
+
 無料入門書:
 
 - Labor Economics by Maximilian Kasy
