@@ -8,7 +8,13 @@
     
     - 実習ではRを用います。
 
-講義アーカイブ
+講義アーカイブ: [Dropbox](https://www.dropbox.com/scl/fo/8tmwgfogfl3hf93gjluus/AOdH_eHMe9YTKXEzzdRvZMI?rlkey=e1hs2pkyrxui79keqi3tn4370&dl=0)でシェア
+
+    - 注意
+    
+        - 動画サイトやSNS上へのアップロードは禁止です
+        
+        - ダウンロードした上で視聴ください(Dropbox上では、60分しか再生されません)
 
 - 以下のどちらかを実行
 
