@@ -1,0 +1,1459 @@
+---
+title: "労働経済学"
+author: "川田恵介"
+format:
+  revealjs:
+    incremental: true 
+    slide-number: true
+    html-math-method: katex
+  pdf:
+    pdf-engine: lualatex
+    documentclass: ltjsarticle 
+    toc: true
+    toc-depth: 3
+    number-sections: true
+bibliography: "ref.bib"
+execute: 
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+library(tidyverse)
+library(recipes)
+```
+
+
+# 労働市場の記述
+
+- どのような家計/企業が、働いているか？/高い賃金を得ているか？/結婚しているか？/子供を持つか?/雇用を増やしているか? 等
+
+    - 議論の出発点
+
+    - データから回答
+
+## 本スライドの方針
+
+- "必要最低限"な仮定のみで得られる, non-trivial な手法を紹介
+
+    - 必要最低限の仮定: 多重共線性がない、ランダムサンプリング、 (+ regularity condition: 高次Momentが有限)
+    
+    - 私見では、労働経済学において特に重要視される傾向
+
+- 伝統的な教科書で採用される説明も紹介
+
+    - 確率モデルの推定として定式化
+
+## 実例: CPS1985
+
+```{r}
+data("CPS1988", package = "AER")
+
+CPS1988 |> 
+  tibble::as_tibble() |> 
+  head(n=10)
+```
+
+## 事例研究の課題
+
+- 事例 (=データ)や社会の特徴を直接的に把握することは困難
+
+    - 大量の変数 (wage,education,..) について、大量の事例が存在しており、人間の認知能力をそもそも超えている
+    
+    - "誰が見ても明らかな"特徴"は、存在しない場合が多い
+
+## 実例: histogram
+
+```{r}
+CPS1988 |> 
+  ggplot2::ggplot(
+    ggplot2::aes(
+      x = log(wage),
+      fill = parttime
+    )
+  ) +
+  ggplot2::theme_bw() +
+  ggplot2::geom_histogram(
+    ggplot2::aes(
+      y = ggplot2::after_stat(..density..)
+    ),
+    alpha = 0.5,
+    position = "identity",
+    bins = 40
+  )
+```
+
+## 実例: histogram
+
+```{r}
+CPS1988 |> 
+  ggplot2::ggplot(
+    ggplot2::aes(
+      x = log(wage),
+      fill = parttime
+    )
+  ) +
+  ggplot2::theme_bw() +
+  ggplot2::geom_histogram(
+    ggplot2::aes(
+      y = ggplot2::after_stat(..density..)
+    ),
+    alpha = 0.5,
+    position = "identity",
+    bins = 40
+  ) +
+  ggplot2::facet_grid(
+    smsa ~ ethnicity
+  )
+```
+
+- 高賃金を得ている労働者の特徴は?
+
+## 関心とする特徴の明示
+
+- どのような特徴を分析対象とするのか、分析前に決定する
+
+    - 例: 平均、分散、中央値
+    
+        - データから社会の特徴を推論する上でも必須
+
+- 労働経済学では、変数間の関係性把握に焦点が当たりがち
+
+    - 良い出発点: Linear Model
+    
+        - $Y$ と $X$ の関係性を簡潔に要約できる
+
+## Linear Model
+
+- $Y$ についてのLinear Model $g_Y(X)$ : $$g_Y(X)=\beta_0 + \beta_1 X_1 + .. + \beta_LX_L$$
+
+    - $\beta_0,..,\beta_L =$ Parameters (データからは観察不可能であり、推定する必要がある)
+    
+    - $X_1..X_L =$ データから観察可能なVariable
+    
+        - 例: $X=[年齢、性別ダミー]$
+
+## "Long" linear model
+
+- Variables $X$ についてではなく、Parameters $\beta$ について Linear (足し算)であることが重要
+
+- 短いモデル $$g_Y(X)=\beta_0 + \beta_1X$$ を"長くする"と $$g_Y(X)=\beta_0 + \beta_1\underbrace{X}_{X_1} + \beta_2\underbrace{X^2}_{X_2}$$
+
+## 記述モデルとしての利点
+
+- パラメータの解釈が明確
+
+    - $\beta_1 =$ "モデル上"で$X_1$が"1単位"大きかった時に、 $Y$ の値がどの程度大きいか?
+
+    - モデルを超えた解釈も有する
+
+# データの記述
+
+- Linear modelの最も代表的な推定方法であるOLSを紹介
+
+## OLSアルゴリズム
+
+- 仮定: 多重共線性 ([wiki](https://ja.wikipedia.org/wiki/%E5%A4%9A%E9%87%8D%E5%85%B1%E7%B7%9A%E6%80%A7))が無い
+
+1. **分析者**が、モデル $g_Y(X)=\beta_0 + ..+ \beta_LX_L$ を設定
+
+2. $\beta=[\beta_0,..,\beta_L]$ を二乗誤差の総和を最小にするように決定 $$\min \sum_i (Y_i-g_Y(X_i))^2$$
+
+    - $X := [X_1,..,X_L]$
+
+- "$Y$"のモデル
+
+## 例: 賃金モデル (関数)
+
+- ミンサー型賃金モデル $$\log(wage)\sim\beta_0 +\beta_1\times EducationYear$$ $$+\beta_2\times Experience + \beta_3 Experience^2$$
+
+    - @川口大司2011ミンサー型賃金関数の日本の労働市場への適用
+
+- $\beta_1=$ "Return to education"
+
+- $\beta_2/\beta_3=$ "Return to experience"
+
+    - "Retrun to human capital"
+
+## 例: 賃金モデル (関数)
+
+```{r}
+#| echo: true
+Fit = CPS1988 |> 
+  lm(log(wage) ~ education + experience + I(experience^2),
+     data = _)
+
+Fit$coefficients |> 
+  round(3)
+```
+
+## 例: 賃金モデル (関数)
+
+```{r}
+#| echo: true
+ggeffects::predict_response(
+  Fit,
+  "experience",
+  vcov_fun = "vcovHC", 
+  vcov_type = "HC3" # Require sandwich
+  ) |> 
+  plot()
+```
+
+## 応用上のコツ
+
+- しばしばOLSの推定結果を数値としてではなく、散布図上の線としてイメージ
+
+    - 機械学習などを理解する上でも有益
+
+## 教科書的例: Yのモデル
+
+```{r}
+N = 50
+
+Temp = tibble::tibble(
+  experience = runif(N,0,20),
+  wage = 10 + experience + rnorm(N,0,1)
+)
+
+Pred = lm(
+  wage ~ experience,
+  Temp
+  )$fitted
+
+Temp |> 
+  ggplot2::ggplot(
+    ggplot2::aes(
+      x = experience,
+      y = wage
+    )
+  ) +
+  ggplot2::theme_bw() +
+  ggplot2::geom_point() +
+  ggplot2::geom_smooth(
+    ggplot2::aes(
+      y = Pred
+    ),
+    method = "lm",
+    se = FALSE
+  )
+  
+```
+
+## 実例: Yのモデル
+
+```{r}
+Pred = lm(
+  log(wage) ~ experience,
+  CPS1988
+  )$fitted
+
+CPS1988 |> 
+  ggplot2::ggplot(
+    ggplot2::aes(
+      x = experience,
+      y = wage |> log()
+    )
+  ) +
+  ggplot2::theme_bw() +
+  ggplot2::geom_point() +
+  ggplot2::geom_smooth(
+    ggplot2::aes(
+      y = Pred
+    ),
+    method = "lm",
+    se = FALSE
+  )
+```
+
+## 実例: Yのモデル
+
+```{r}
+Pred = lm(
+  log(wage) ~ experience,
+  CPS1988
+  )$fitted
+
+CPS1988 |> 
+  ggplot2::ggplot(
+    ggplot2::aes(
+      x = experience,
+      y = wage |> log()
+    )
+  ) +
+  ggplot2::theme_bw() +
+  ggplot2::geom_bin2d() +
+  ggplot2::geom_smooth(
+    ggplot2::aes(
+      y = Pred
+    ),
+    method = "lm",
+    se = FALSE
+  )
+```
+
+## 実例: Yのモデル
+
+```{r}
+SMSA = dplyr::case_when(
+  CPS1988$smsa == "yes" ~ 1,
+  CPS1988$smsa == "no" ~ -0
+)
+
+Pred = lm(
+  SMSA ~ experience,
+  CPS1988
+  )$fitted
+
+CPS1988 |> 
+  ggplot2::ggplot(
+    ggplot2::aes(
+      x = experience,
+      y = SMSA
+    )
+  ) +
+  ggplot2::theme_bw() +
+  ggplot2::geom_bin2d() +
+  ggplot2::geom_smooth(
+    ggplot2::aes(
+      y = Pred
+    ),
+    method = "lm",
+    se = FALSE
+  ) +
+  ggplot2::ylab(
+    "SMSA: yes = 1/no = 0"
+  )
+```
+
+## 応用上の問題点
+
+- 労働経済学における多くの応用では、「$X$ がよく似ていても $Y$ の値が大きく異なる」
+
+    - 賃金、就業、結婚等は非常に多くの要因が関わっている
+    
+        - データから観察できる $X$ は限られている
+
+    - $Y$ のモデルには見えない
+
+- 別解釈が有効
+
+## OLSアルゴリズム (その２)
+
+1. **分析者**が、モデル $g_Y(X)=\beta_0 + ..+ \beta_LX_L$ を設定
+
+2. $\beta=[\beta_0,..,\beta_L]$ を二乗誤差の総和を最小にするように決定 $$\min \sum_x[(Averge(Y|X)-g_Y(X))^2\times n(X)]$$
+
+    - $n(X) =$ 属性 $X$ を持つ事例数
+    
+    - $Averge(Y|X) =$ 属性 $X$ を持つ事例についての(データ上の)平均値
+
+## 解釈
+
+- $Y$ の平均値の近似モデル
+
+    - 事例数が多い地点を重点的に近似
+
+
+## 実例: $E[Y|X]$のモデル
+
+- $g_Y(X)=\beta_0 + \beta_1Experience$
+
+```{r}
+Pred = lm(
+  log(wage) ~ experience,
+  CPS1988
+  )$fitted
+
+CPS1988 |> 
+  dplyr::mutate(
+    wage = wage |> log()
+  ) |> 
+  dplyr::mutate(
+    AverageWage = wage |> mean(),
+    .by = c(
+      experience
+    )
+  ) |> 
+  ggplot2::ggplot(
+    ggplot2::aes(
+      x = experience,
+      y = AverageWage
+    )
+  ) +
+  ggplot2::theme_bw() +
+  ggplot2::geom_point(
+    ggplot2::aes(
+      color = "Average"
+    )
+  ) +
+  ggplot2::geom_smooth(
+    ggplot2::aes(
+      y = Pred
+    ),
+    method = "lm",
+    se = FALSE
+  ) +
+  ggplot2::geom_bin2d(
+    ggplot2::aes(
+      y = wage
+    ),
+    alpha = 0.1
+  )
+```
+
+## 実例: $E[Y|X]$の"長い"モデル
+
+- $f_Y(X)=\beta_0 + \beta_1Experience + \beta_2Experience^2$
+
+```{r}
+Pred = lm(
+  log(wage) ~ poly(experience,2),
+  CPS1988
+  )$fitted
+
+CPS1988 |> 
+  dplyr::mutate(
+    wage = wage |> log()
+  ) |> 
+  dplyr::mutate(
+    AverageWage = wage |> 
+      mean(),
+    .by = c(
+      experience
+    )
+  ) |> 
+  ggplot2::ggplot(
+    ggplot2::aes(
+      x = experience,
+      y = AverageWage
+    )
+  ) +
+  ggplot2::theme_bw() +
+  ggplot2::geom_point(
+    ggplot2::aes(
+      color = "Average"
+    )
+  ) +
+  ggplot2::geom_smooth(
+    ggplot2::aes(
+      y = Pred
+    ),
+    se = FALSE
+  ) +
+  ggplot2::geom_bin2d(
+    ggplot2::aes(
+      y = wage
+    ),
+    alpha = 0.1
+  )
+```
+
+## 実例: $E[Y|X]$の重回帰
+
+- $f_Y(X)=\beta_0 + \beta_1Experience + \beta_3gender + \beta_4married$
+
+```{r}
+Pred = lm(
+  log(wage) ~ poly(experience,2) + ethnicity + smsa,
+  CPS1988
+  )$fitted
+
+CPS1988 |> 
+  dplyr::mutate(
+    wage = wage |> log()
+  ) |> 
+  dplyr::mutate(
+    AverageWage = wage |> mean(),
+    .by = c(
+      experience,
+      ethnicity,
+      smsa
+    )
+  ) |> 
+  ggplot2::ggplot(
+    ggplot2::aes(
+      x = experience,
+      y = AverageWage
+    )
+  ) +
+  ggplot2::theme_bw() +
+  ggplot2::geom_point(
+    ggplot2::aes(
+      color = "Average"
+    )
+  ) +
+  ggplot2::geom_smooth(
+    ggplot2::aes(
+      y = Pred
+    ),
+    se = FALSE
+  ) +
+  ggplot2::geom_bin2d(
+    ggplot2::aes(
+      y = wage
+    ),
+    alpha = 0.01
+  ) +
+  ggplot2::facet_grid(
+    ethnicity ~ smsa
+  )
+```
+
+## 実例: $E[Y|X]$の重回帰
+
+- $f_Y(X)=\beta_0 + \beta_3gender\times Experience + \beta_4married\times Experience$
+
+```{r}
+Pred = lm(
+  log(wage) ~ poly(experience,2)*smsa + poly(experience,2)*ethnicity,
+  CPS1988
+  )$fitted
+
+CPS1988 |> 
+  dplyr::mutate(
+    wage = wage |> log()
+  ) |> 
+  dplyr::mutate(
+    AverageWage = wage |> mean(),
+    .by = c(
+      experience,
+      smsa,
+      ethnicity
+    )
+  ) |> 
+  ggplot2::ggplot(
+    ggplot2::aes(
+      x = experience,
+      y = AverageWage
+    )
+  ) +
+  ggplot2::theme_bw() +
+  ggplot2::geom_point(
+    ggplot2::aes(
+      color = "Average"
+    )
+  ) +
+  ggplot2::geom_smooth(
+    ggplot2::aes(
+      y = Pred
+    ),
+    se = FALSE
+  ) +
+  ggplot2::geom_bin2d(
+    ggplot2::aes(
+      y = wage
+    ),
+    alpha = 0.01
+  ) +
+  ggplot2::facet_grid(
+    smsa ~ ethnicity
+  )
+```
+
+## 実例: $Y$ が２値の場合
+
+```{r}
+CPS1988$smsa = case_when(
+  CPS1988$smsa == "yes" ~ 1,
+  CPS1988$smsa == "no" ~ 0
+)
+Pred = lm(
+  smsa ~ poly(experience,2),
+  CPS1988
+  )$fitted
+
+CPS1988  |> 
+  dplyr::mutate(
+    AverageSMSA = smsa |> mean(),
+    .by = c(
+      experience
+    )
+  ) |> 
+  ggplot2::ggplot(
+    ggplot2::aes(
+      x = experience,
+      y = AverageSMSA
+    )
+  ) +
+  ggplot2::theme_bw() +
+  ggplot2::geom_point(
+    ggplot2::aes(
+      color = "Average"
+    )
+  ) +
+  ggplot2::geom_smooth(
+    ggplot2::aes(
+      y = Pred
+    ),
+    se = FALSE
+  ) +
+  ggplot2::geom_bin2d(
+    ggplot2::aes(
+      y = smsa
+    ),
+    alpha = 0.1
+  )
+```
+
+# Estimandの定義
+
+- データから労働市場についての含意を得たいが、非常に難しい
+
+    - OLSによって算出されるモデルは何を意味しているのか?
+
+        - 多くの人が合意可能な含意はあるのか？
+
+## Sampling Uncertainly
+
+- 根本問題: 独立した研究者が、同時に同じ方法で調査/分析したとしても、同じ結果にならない
+
+    - 例: 報道機関による世論調査
+    
+    - 調査する事例が異なるため
+
+## 概念: Estimator/Estimand
+
+- 対応策: 「全ての研究者で共通の真の答え」 (Estimand) と 「人によって異なるデータからの回答」 (Estimator) に分離する
+
+    - 社会とデータの"中間"概念、 **母集団**、を導入し、EstimandとEstimatorを概念的に接続する
+
+## 概念: 母集団
+
+- （ラフに定義すると)"無限大の事例数"を持つデータ
+
+    - 実際のデータは、母集団の一部
+
+- 正式には、変数の同時分布 $f(Y,X)^*$ (母分布)として定義
+
+- 分析目標の更新: データから **母集団** の特徴を理解できるか？
+
+## 仮定: ランダムサンプリング
+
+- データの事例は、母集団からランダムに選ばれる
+
+    - 母分布に従って選ばれる
+
+## Estimandの定義
+
+- 母集団 $f(Y,X)$ が直接観察できる (事例数無限大のランダムサンプルデータを持っている)場合に、何を**推定したいのか?**
+
+    - データと同様に、関心とする特徴の最初に明示する
+
+## Estimand: Population OLS
+
+- 代表的なEstimand $=$ "母集団で**仮想的に**OLSを行った結果" $$g(Y)^*=\beta_0^* + \beta_1^*X_1+..\beta_L^*X_L^*$$
+
+    - Population mean $E[Y|X]$ を近似
+
+## Population OLSの魅力
+
+1. **ランダムサンプリングの仮定のみ**で、データは有益な推定結果を提供できる
+
+- Population OLSが推定できれば、
+
+2. $X$ と $Y$ の母集団上での関係性について、Nontrivial な情報を提供
+
+3. 条件付き母平均 $E[Y|X]$ を上手く近似できているかもしれない
+
+- 注意点: $g(X)^*$ は、 $E[Y|X]$ のみならず、 $X$ の分布に依存する
+
+## 例
+
+```{r}
+SimData <- function(i,n) {
+  set.seed(i)
+  X = runif(
+    n,
+    -2,
+    2
+  )
+  TrueY = X^2
+  U = rnorm(n)
+  
+  Result = tibble::tibble(
+    X,
+    TrueY,
+    U
+    ) |> 
+    mutate(
+      Y = TrueY + U
+    )
+  
+  return(Result)
+}
+
+Lower = lm(Y ~ X,
+   SimData(1,10000),
+   subset = X < 0
+   ) |> 
+  predict(SimData(1,10000))
+
+Upper = lm(Y ~ X,
+   SimData(1,10000),
+   subset = X > 0
+   ) |> 
+  predict(SimData(1,10000))
+
+Middle = lm(Y ~ X,
+   SimData(1,10000)
+   ) |> 
+  predict(SimData(1,10000))
+
+
+SimData(1,10000) |> 
+  mutate(
+    Upper,
+    Lower,
+    Middle
+  ) |> 
+  ggplot(
+    aes(
+      x = X,
+      y = TrueY
+    )
+  ) +
+  theme_bw() +
+  geom_smooth(
+    method = "lm",
+    formula = y ~ I(x^2),
+    aes(
+      color = "Population mean"
+    ),
+    se = FALSE
+  ) +
+  geom_smooth(
+    method = "lm",
+    formula = y ~ x,
+    aes(
+      y = Upper,
+      color = "Population OLS: X ~ [-2,0]"
+    ),
+    se = FALSE
+  ) +
+  geom_smooth(
+    method = "lm",
+    formula = y ~ x,
+    aes(
+      y = Lower,
+      color = "Population OLS: X ~ [0,2]"
+    ),
+    se = FALSE
+  ) +
+  geom_smooth(
+    method = "lm",
+    formula = y ~ x,
+    aes(
+      y = Middle,
+      color = "Population OLS: X ~ [-2,2]"
+    ),
+    se = FALSE
+  )
+```
+
+## 仮定: No misspecification
+
+- Misspecification: $\beta_0,..$ をどのように選んでも $g^*(X)\neq E[Y|X]$
+
+    - Misspecificationがあると Population OLS $g^*(X)\neq E[Y|X]$
+
+    - Misspefictationがなければ、$X$ がどのような分布していても $g^*(X)= E[Y|X]$
+
+        - 例外は$X$ が分布を持たないケース
+
+## 例
+
+```{r}
+SimData <- function(i,n) {
+  set.seed(i)
+  X = runif(
+    n,
+    -2,
+    2
+  )
+  TrueY = X^2
+  U = rnorm(n)
+  
+  Result = tibble::tibble(
+    X,
+    TrueY,
+    U
+    ) |> 
+    mutate(
+      Y = TrueY + U
+    )
+  
+  return(Result)
+}
+
+Lower = lm(TrueY ~ I(X^2),
+   SimData(1,10000),
+   subset = X < 0
+   ) |> 
+  predict(SimData(1,10000))
+
+Upper = lm(TrueY ~ I(X^2),
+   SimData(1,10000),
+   subset = X > 0
+   ) |> 
+  predict(SimData(1,10000))
+
+Middle = lm(TrueY ~ I(X^2),
+   SimData(1,10000)
+   ) |> 
+  predict(SimData(1,10000))
+
+
+SimData(1,10000) |> 
+  mutate(
+    Upper,
+    Lower,
+    Middle
+  ) |> 
+  ggplot(
+    aes(
+      x = X,
+      y = TrueY
+    )
+  ) +
+  theme_bw() +
+  geom_smooth(
+    method = "lm",
+    formula = y ~ I(x^2),
+    aes(
+      color = "Population mean"
+    ),
+    se = FALSE
+  ) +
+  geom_smooth(
+    method = "lm",
+    formula = y ~ I(x^2),
+    aes(
+      y = Upper,
+      color = "Population OLS: X ~ [-2,0]"
+    ),
+    se = FALSE
+  ) +
+  geom_smooth(
+    method = "lm",
+    formula = y ~ I(x^2),
+    aes(
+      y = Lower,
+      color = "Population OLS: X ~ [0,2]"
+    ),
+    se = FALSE
+  ) +
+  geom_smooth(
+    method = "lm",
+    formula = y ~ I(x^2),
+    aes(
+      y = Middle,
+      color = "Population OLS: X ~ [-2,2]"
+    ),
+    se = FALSE
+  )
+```
+
+## まとめ
+
+- 同じ母集団/Estimandを対象とする独立した研究であれば、Estimandの値は共通
+
+    - ランダムサンプルによって得られるデータが提供する回答は異なる
+
+- 上記の問題構造に持ち込むために、母集団を導入
+
+# Estimandの推定
+
+- Populationは直接観察できないので、Estimandも観察できない
+
+    - データから推論するしかない
+    
+        - 推定結果 (Estimator)
+
+## データから計算したOLSの性質
+
+- データが違うと異なるモデルが出てくる
+
+    - **モデル** の分布は、事例数が増えると、一定の規則性を持つ
+    
+- Random Samplingであれば、データが増えると、Population OLSに近いEstimatorが"出やすくなる"
+
+    - 正規分布で近似できる (中心極限定理)
+    
+    - 無限大の事例数の元で、Estimand (Population OLS) に収束する
+
+## Sampling distribution
+
+- 仮想的に生じる無数の結果の一つを観察する
+
+```{dot}
+digraph D {
+  Society [label = Society, shape = box]
+  Pop [label = Population, shape = box]
+  Estimand [label = "Estimand", shape = box]
+  Data [label = "My Data", shape = box]
+  Data1 [label = "Data", shape = box]
+  Data2 [label = "Data", shape = box]
+  
+  subgraph cluster_1 {
+    label = "Sampling distribution"
+
+    Result [label = "My Estimator", shape = box]
+    Result1 [label = "Estimator", shape = box]
+    Result2 [label = "Estimator", shape = box]
+  }
+  Pop -> Data1,Data2  [style=dashed, color=grey]
+  Pop -> Data [label = "Sampling"]
+  Data -> Result [label = "Algorithm"]
+  Data1 -> Result1 [style=dashed, color=grey]
+  Data2 -> Result2 [style=dashed, color=grey]
+  Result -> Estimand [style = dashed, label = "Inference"]
+  Society -> Pop -> Estimand [label = "Define"]
+  {
+  rank = same
+  Society
+  Pop
+  Estimand
+  }
+  }
+```
+
+
+## Asyptotic normality
+
+- 事例数 $N$ が増えると、**Estimator**の分布に規則性が持つ
+
+```{dot}
+digraph D {
+  Pop [label = Population, shape = box]
+  Data [label = "My Data", shape = box]
+  Data1 [label = "Data", shape = box]
+  Data2 [label = "Data", shape = box]
+  
+  subgraph cluster_1 {
+    label = "Normal distribution (mean = Estimand)"
+
+    Result [label = "My Estimator", shape = box]
+    Result1 [label = "Estimator", shape = box]
+    Result2 [label = "Estimator", shape = box]
+  }
+  
+  Pop -> Data1,Data2  [style=dashed, color=grey]
+  Pop -> Data
+  Data -> Result
+  Data1 -> Result1 [style=dashed, color=grey]
+  Data2 -> Result2 [style=dashed, color=grey]
+  }
+```
+
+## Consistency
+
+- 事例数が極めて大規模になると, $\simeq$ Estimand
+
+```{dot}
+digraph D {
+  Pop [label = Population, shape = box]
+  Data [label = "My Data", shape = box]
+  Data1 [label = "Data", shape = box]
+  Data2 [label = "Data", shape = box]
+  Estimand [label = "Estimand", shape = box]
+  
+  subgraph cluster_1 {
+    label = "Converge"
+
+    Result [label = "My Estimator", shape = box]
+    Result1 [label = "Estimator", shape = box]
+    Result2 [label = "Estimator", shape = box]
+  }
+  
+  Pop -> Data1,Data2  [style=dashed, color=grey]
+  Pop -> Data
+  Data -> Result
+  Data1 -> Result1 [style=dashed, color=grey]
+  Data2 -> Result2 [style=dashed, color=grey]
+  Result,Result1,Result2 -> Estimand
+  }
+```
+
+## 数値例: 母集団 (賃金 - 年齢)
+
+```{r}
+SimData <- function(i,n) {
+  set.seed(i)
+  X = runif(
+    n,
+    15,
+    60
+  )
+  
+  TrueY = 80*X - (X^2) - 900
+  
+  U = rnorm(n)
+  
+  Result = tibble::tibble(
+    X,
+    TrueY,
+    U
+    ) |> 
+    mutate(
+      Y = TrueY + U
+    )
+  
+  return(Result)
+}
+
+SimData(1,10000) |> 
+  ggplot(
+    aes(
+      x = X,
+      y = TrueY
+    )
+  ) +
+  theme_bw() +
+  geom_smooth(
+    method = "lm",
+    formula = y ~ x + I(x^2),
+    aes(
+      color = "Population mean"
+    )
+  ) +
+  geom_smooth(
+    method = "lm",
+    formula = y ~ x,
+    aes(
+      color = "Population OLS"
+    ),
+    se = FALSE
+  )
+```
+
+## Estimate: $N=20$
+
+```{r}
+N = 20
+
+TestData = SimData(1,10000)
+
+SimOLS = function(i,n){
+  Temp = SimData(i,n)
+  Pred = lm(Y ~ X, Temp) |> predict(TestData)
+  Result = TestData |> 
+    mutate(
+      Pred = Pred,
+      ID = i
+    )
+  return(Result)
+}
+
+map_dfr(
+  1:9,
+  function(i){
+    SimOLS(i,20)
+  }
+  ) |> 
+  ggplot(
+    aes(
+      x = X,
+      y = TrueY
+    )
+  ) +
+  theme_bw() +
+  geom_smooth(
+    method = "lm",
+    formula = y ~ x + I(x^2),
+    aes(
+      color = "Population mean"
+    ),
+    se = FALSE,
+    alpha = 0.5,
+    linetype = "dotted"
+  ) +
+  geom_smooth(
+    method = "lm",
+    formula = y ~ x,
+    aes(
+      color = "Population OLS"
+    ),
+    se = FALSE
+  ) +
+  geom_smooth(
+    method = "lm",
+    formula = y ~ x,
+    aes(
+      y = Pred,
+      color = "OLS"
+    ),
+    se = FALSE
+  ) +
+  facet_wrap(
+    ~ ID
+  )
+
+```
+
+## Estimate: $N=20000$
+
+```{r}
+N = 20000
+
+map_dfr(
+  1:9,
+  function(i){
+    SimOLS(i,N)
+  }
+  ) |> 
+  ggplot(
+    aes(
+      x = X,
+      y = TrueY
+    )
+  ) +
+  theme_bw() +
+  geom_smooth(
+    method = "lm",
+    formula = y ~ x + I(x^2),
+    aes(
+      color = "Population mean"
+    ),
+    se = FALSE,
+    alpha = 0.5,
+    linetype = "dotted"
+  ) +
+  geom_smooth(
+    method = "lm",
+    formula = y ~ x,
+    aes(
+      color = "Population OLS"
+    ),
+    se = FALSE
+  ) +
+  geom_smooth(
+    method = "lm",
+    formula = y ~ x,
+    aes(
+      y = Pred,
+      color = "OLS"
+    ),
+    se = FALSE
+  ) +
+  facet_wrap(
+    ~ ID
+  )
+
+```
+
+## 95$\%$ 信頼区間
+
+- Sampling uncertainlyを直感的に要約
+
+- Estimatorごとに計算される区間であり
+
+    - 95 $\%$ のEstimatorの信頼区間は、Estimandを含む
+
+- Estimatorが正規分布に従うと想定し、計算される
+
+    - 中心極限定理から、ある程度の事例数があれば、近似的に正当化される
+    
+- 労働経済学において、結論を述べる最大の根拠
+
+## 例: 信頼区間
+
+```{r}
+SimData = function(n,i=1,sd=1){
+  set.seed(i)
+  
+  data = tibble::tibble(
+    X = sample(
+      0:5,
+      n,
+      replace = TRUE
+    )
+  ) |> 
+    dplyr::mutate(
+      TrueY = X^3,
+      Y = TrueY + rnorm(n,0,sd)
+    )
+  return(data)
+}
+
+Temp = map_dfr(
+  1:20,
+  function(i){
+    SimData(200,i=i,1) |> 
+      estimatr::lm_robust(
+        Y ~ X,
+        data =_
+      ) |> 
+      estimatr::tidy() |> 
+      filter(
+        term == "X"
+      ) |> 
+      mutate(
+        N = 200,
+        ID = i
+      ) |> 
+      bind_rows(
+         SimData(2000,i=i,1) |> 
+      estimatr::lm_robust(
+        Y ~ X,
+        data =_
+      ) |> 
+      estimatr::tidy() |> 
+      filter(
+        term == "X"
+      ) |> 
+      mutate(
+        N = 2000,
+        ID = i
+      )
+      ) |> 
+      bind_rows(
+         SimData(10000,i=i,1) |> 
+      estimatr::lm_robust(
+        Y ~ X,
+        data =_
+      ) |> 
+      estimatr::tidy() |> 
+      filter(
+        term == "X"
+      ) |> 
+      mutate(
+        N = 10000,
+        ID = i
+      )
+      ) |> 
+      bind_rows(
+         SimData(50000,i=i,1) |> 
+      estimatr::lm_robust(
+        Y ~ X,
+        data =_
+      ) |> 
+      estimatr::tidy() |> 
+      filter(
+        term == "X"
+      ) |> 
+      mutate(
+        N = 50000,
+        ID = i
+      )
+      )
+  }
+  ) |> 
+  mutate(
+    Observe = case_when(
+      ID == 10 ~ "Observe",
+      ID != 10 ~ "Unobserve"
+    )
+  )
+
+Temp |> 
+  ggplot(
+    aes(
+      y = ID,
+      x = estimate,
+      xmin = conf.low,
+      xmax = conf.high,
+      color = N |> factor()
+    )
+  ) +
+  theme_bw() +
+  geom_vline(
+    xintercept = 23.8
+  ) +
+  geom_pointrange(
+    
+  ) +
+  facet_wrap(
+    ~ N
+  ) +
+  ylab("Data ID") +
+  xlab("beta")
+```
+
+# 定式化の診断
+
+- Population OLS以上の解釈には、厳密なテストが困難な仮定が必要
+
+    - 推定後に診断し、結果とともに報告することが有益
+
+## 決定係数
+
+- 伝統的な指標であり、多くの関数が自動的に報告 ([wiki](https://ja.wikipedia.org/wiki/%E6%B1%BA%E5%AE%9A%E4%BF%82%E6%95%B0))
+
+- モデルの$Y$ への当てはまりの良さを測定する指標であり、多くの応用で非常に低い値となる
+
+- 問題点
+
+    - 過剰適合/過学習の結果として、非常に高い値が出てくる
+
+    - $Y$ の平均値のモデルの評価はできない
+
+## Binscatter
+
+- 母平均とどの程度乖離しているのか？、 可視的なやり方で診断
+
+    - データ上でOLSの結果と定式化に強く依存しない推定結果を比較
+
+- @chetty2009salience , @chetty2011adjustment , @chetty2011does などで採用された、人気の手法
+
+## Binscatter
+
+1. $X$ を離散的カテゴリ(bin)に変換する (例) 年齢を4分割する
+
+2. 各bin内で$Y$の平均値を計算する
+
+## 例: Wage
+
+```{r}
+CPS1988 |> 
+  dplyr::mutate(
+    Bin = dplyr::ntile(experience,20)
+  ) |> 
+  dplyr::mutate(
+    AverageWage = mean(log(wage)),
+    AverageExperience = mean(experience),
+    .by = Bin
+  ) |> 
+  ggplot2::ggplot(
+    ggplot2::aes(
+      x = AverageExperience,
+      y = AverageWage
+    )
+  ) +
+  ggplot2::theme_bw() +
+  ggplot2::geom_point() +
+  ggplot2::geom_smooth(
+    ggplot2::aes(
+      x = experience,
+      y = log(wage),
+      color = "1st order"
+    ),
+    method = "lm",
+    se = FALSE
+  ) +
+  ggplot2::geom_smooth(
+   ggplot2::aes(
+      x = experience,
+      y = log(wage),
+      color = "2nd order"
+    ),
+    method = "lm",
+    se = FALSE,
+    formula = y ~ poly(x,2,raw = TRUE)
+  ) +
+  ggside::geom_xsidehistogram(
+    aes(
+      x = experience
+    )
+  )
+```
+
+
+## 例: Gender
+
+```{r}
+CPS1988 |> 
+  dplyr::mutate(
+    Bin = dplyr::ntile(experience,20),
+    SMSA = smsa
+  ) |> 
+  dplyr::mutate(
+    AverageSMSA = mean(SMSA),
+    AverageExperience = mean(experience),
+    .by = Bin
+  ) |> 
+  ggplot2::ggplot(
+    ggplot2::aes(
+      x = AverageExperience,
+      y = AverageSMSA
+    )
+  ) +
+  ggplot2::theme_bw() +
+  ggplot2::geom_point() +
+  ggplot2::geom_smooth(
+    ggplot2::aes(
+      x = experience,
+      y = SMSA,
+      color = "1st order"
+    ),
+    method = "lm",
+    se = FALSE
+  ) +
+  ggplot2::geom_smooth(
+   ggplot2::aes(
+      x = experience,
+      y = SMSA,
+      color = "2nd order"
+    ),
+    method = "lm",
+    se = FALSE,
+    formula = y ~ poly(x,2,raw = TRUE)
+  ) +
+  ggside::geom_xsidehistogram(
+    aes(
+      x = experience
+    )
+  )
+```
+
+## まとめ
+
+- @kuchibhotla2018model
+
+- @aronow2019foundations
+
+- @ding2024linear
+
+
+# 補論: 伝統的な議論  {#sec-traditional}
+
+- 伝統的な入門書(の最初の方の章)における議論と比較する
+
+    - @wooldridge2016introductory, @stock2020introduction など
+
+        - 「正しい確率モデルのパラメタを推定する問題」に落とし込まれることが多い
+
+## 確率モデル
+
+- $Y$ の正しい確率モデルを想定する: $$Y=\underbrace{g(X)}_{\beta_0 + \beta_1X_1+..} + \underbrace{u}_{誤差項 = Y - g(X)}$$
+
+- 恒等式として成り立つ
+
+- 誤差項の分布に "仮定" を追加することで $\beta$ を"確定"させる
+
+## $E[u\times X]=0$
+
+- $$Y=\underbrace{g(X)}_{\beta_0 + \beta_1X_1+..} + \underbrace{u}_{E[u\times X]=0}$$ を母集団で満たす $\beta = $ Population OLS 
+
+## $E[u|X]=0$
+
+- $$Y=\underbrace{g(X)}_{\beta_0 + \beta_1X_1+..} + \underbrace{u}_{E[u|X]=0}$$ を母集団で満たす $\beta = E[Y|X]=g_Y(X)$ を達成 
+
+- 母平均についてMis-specificationがあれば、上記式を満たす$\beta$ は**存在しない**
+
+- $E[u|X]=0$ が成り立てば、必ず $E[u\times X]=0$ も成り立つ
+
+## $Var[u|X]=Var[u]$
+
+- 分散均一
+
+    - OLSは最善の不偏推定量(BLUE)を提供
+    
+        - ガウス・マルコフの定理 ([wiki](https://ja.wikipedia.org/wiki/%E3%82%AC%E3%82%A6%E3%82%B9%EF%BC%9D%E3%83%9E%E3%83%AB%E3%82%B3%E3%83%95%E3%81%AE%E5%AE%9A%E7%90%86#:~:text=%E3%82%AC%E3%82%A6%E3%82%B9%3D%E3%83%9E%E3%83%AB%E3%82%B3%E3%83%95%E3%81%AE%E5%AE%9A%E7%90%86%EF%BC%88%E3%82%AC%E3%82%A6%E3%82%B9,%E3%83%9E%E3%83%AB%E3%82%B3%E3%83%95%E3%81%AB%E3%82%88%E3%81%A3%E3%81%A6%E7%A4%BA%E3%81%95%E3%82%8C%E3%81%9F%E3%80%82))
+
+    - 古典的な方法で標準誤差 (信頼区間) を計算可能
+
+## $u\sim N(0,\sigma)$
+
+- $$Y=\underbrace{g(X)}_{\beta_0 + \beta_1X_1+..} + \underbrace{u}_{\sim N(0,\sigma)}$$ 
+
+    - 古典的回帰モデル
+
+- Estimand $f(Y|X)$ ($Y$ の条件付き分布) の優れたEstimator (最尤法の推定値と一致)
+    
+    - 推定結果は、有限の事例数の元で、正規分布に従う
+
+- 上記式を満たす$\beta$ が存在しない(Mis-specificationが存在する)可能性が非常に高い
+
+## Reference
