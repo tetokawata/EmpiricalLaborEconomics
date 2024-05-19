@@ -36,8 +36,6 @@
 
     - [Foundations of Agnostic Statistics](https://www.cambridge.org/core/books/foundations-of-agnostic-statistics/684756357E7E9B3DFF0A8157FB2DCECA)
 
-    - [Introduction to Statistical Learning](https://www.statlearning.com/)
-    
     - [Applied Causal Inference Powered by ML and AI](https://causalml-book.org/)
 
 - R
