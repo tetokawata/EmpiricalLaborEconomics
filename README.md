@@ -35,6 +35,8 @@
 - データ分析
 
     - [Introduction to Statistical Learning](https://www.statlearning.com/)
+    
+    - [Applied Causal Inference Powered by ML and AI](https://causalml-book.org/)
 
 - R
 
