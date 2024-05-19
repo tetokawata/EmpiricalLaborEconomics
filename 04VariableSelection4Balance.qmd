@@ -1,0 +1,374 @@
+---
+title: "変数選択"
+subtitle: "労働経済学 (補論)"
+author: "川田恵介"
+format:
+  revealjs:
+    incremental: true 
+    slide-number: true
+    html-math-method: katex
+  pdf:
+    pdf-engine: lualatex
+    documentclass: ltjsarticle 
+    toc: true
+    toc-depth: 3
+    number-sections: true
+bibliography: "ref.bib"
+execute: 
+  echo: false
+  warning: false
+  message: false
+---
+
+# 変数選択
+
+- $\tau=E[Y|D=d',X]-E[Y|D=d,X]$ を近似する $Y=\beta_D D + \beta_0 + \beta_1Z_1+..\beta_LZ_L$ を明確な統計的な基準に基づいて選ぶ
+
+    - OLSでは、事前に研究者が選ぶ必要がある!!!
+
+## 問題設定
+
+- 労働研究では、バランスさせたい$X$が大量に存在するケースも多い
+
+- 関心のある比較は、 $E[Y|D=d',X] - E[Y|D=d,X]$
+
+    - 例: $Y=$ 年収、$D=$ 性別、 $X=$ ついている仕事の特徴
+    
+        - 同じ働き方をしている男女内賃金格差
+        
+- $X$ に大量のデータが含まれているケースがある
+
+    - 例: 労働時間、勤続年数、業務内容、それらの交差項...
+    
+        - 全てをBalanceさせることができない/推定精度が大幅に悪化する
+
+## アイディア
+
+- $X$ 全てが"重要"なわけではないかもしれない
+
+    - $X$ の一部 $Z$ のみをバランスさせれば十分
+
+    - $E[Y | D = d', X] - E[Y | D = d, X]\simeq E[Y | D = d',Z] - E[Y | D = d, Z]$
+
+## 仮定: Sparsity
+
+- $$E[Y|D,X]=\tau D+\beta_0+\underbrace{\beta_1X_1+..+\beta_LX_L}_{L > 事例数でもOK}$$
+
+- (Approximately) sparsity: 事例数に比べて、十分に少ない変数数 $S<<$$ 事例数で、母平均をうまく近似できる
+
+- 実戦: 十分に複雑なモデルについてLASSOを推定し、変数選択
+
+    - もともとのモデルには、"trivial"な変数も含まれていると仮定
+    
+    - 詳細は [Capther 4 in Causal ML参照](https://causalml-book.org/)
+
+# Penalized Regression
+
+- データ主導の変数選択については、多くの提案がなされている
+
+    - 代表例はLASSO (機械学習の代表的な手法)
+    
+## LASSO Algorithm
+
+- $E[Y|X]$ を近似するモデル $g(X)$ を推定
+
+0. 十分に複雑なモデルからスタート: 例: $X$ について二乗項と交差項を作成
+
+1. 何らかの基準(後述)に基づいて Hyper (Tuning) parameter $\lambda$ を設定
+
+2. 以下の最適化問題を解いて、 Linear model $g(X)=\beta_0 +\beta_1X_1+\beta_2X_2+...$ を推定 $$\min\sum (y_i-g(x_i))^2 + \lambda(|\beta_1| + |\beta_2| +..)$$
+
+## Constrained optimizationとしての書き換え
+
+1. 何らかの基準(後述)に基づいて Hyper parameter $\lambda$ を設定
+
+2. 以下の最適化問題を解いて、 Linear model $g(X)=\beta_0 +\beta_1X_1+\beta_2X_2+...$ を推定 $$\min\sum (y_i-g(x_i))^2$$ where $$|\beta_1| + |\beta_2| +..\le A$$
+
+## $\lambda$ の役割: OLS
+
+- $\lambda=0$ と設定すれば、 (複雑なモデルを)OLSで推定した推定結果と一致
+
+- $$Y-g_Y(X)=\underbrace{Y - E[Y|X]}_{不変}$$ $$+\underbrace{E[Y|X] - g_{Y,\infty}(X)}_{小さい}+\underbrace{g_{Y,\infty}(X) - g_Y(X)}_{大きい傾向}$$
+
+- すべての変数が活用される
+
+## $\lambda$ の役割: 平均
+
+- $\lambda=\infty$ と設定すれば、 必ず$\beta_1=\beta_2=..=0$となる
+
+    - $\beta_0$ のみ、最小二乗法で推定: $g(X)=$ サンプル平均
+
+- すべての変数が排除される
+
+## $\lambda$ の役割
+
+- やりたい事: $E[Y|X]$ を上手く近似するように $\lambda$ を設定し、単純すぎるモデル (Approximation errorが大きすぎる)と複雑すぎるモデル (Estimation errorが大きすぎる)の間の"ちょうどいい"モデルを構築する
+
+- 設定方法: 理論値([hdm](https://cran.r-project.org/web/packages/hdm/index.html)で採用)
+
+    - サンプル分割(交差推定, [glmnet](https://cran.r-project.org/web/packages/glmnet/index.html)で実装)/情報基準([gamlr](https://cran.r-project.org/web/packages/gamlr/index.html)で採用) なども有力
+    
+## 変数選択
+
+- いくつかの変数について、係数値 $\beta$ が厳密にゼロになるうる
+
+    - モデルから除外される
+    
+        - OLSでは"生じない"
+
+## 注意点
+
+- LASSOおよび他のPenlized Regression (Ridgeなど)によって推定された係数値について、解釈を与えることは難しい
+
+    - $E[Y|X]$ の近似が目的であり、係数値について明確な母集団上の解釈がない
+    
+        - $Y$ の予測が目的であれば、優れた手法
+        
+    - $Y$ とそこそこの関係性がある変数であったとしても、除外される可能性がある
+    
+    - 信頼区間の計算も難しい
+
+- さらに学びたい人は、Chap 1 in [CausalML](https://causalml-book.org/), in Chap 6 in [ISL](https://www.statlearning.com/) などを参照
+
+# Double Selection
+
+- 変数選択には一般にミスが生じる
+
+    - 重要な変数を除外してまうリスクがある
+    
+- リスクを緩和するために、"ダブルチェック"を行う必要がある
+
+- @belloni2014inference
+
+    - Gentle introduction: @angrist2022machine
+
+## Naiveなアイディア
+
+- $X$ を全てバランスさせるのではなく、$Y$ との相関が強いものだけをバランスさせる
+
+    - $g_Y(X)$ をLASSOで推定し、選択された変数だけをOLSに加える
+
+## 問題点
+
+- 問題点: LASSOによる変数選択は、$Y$ とそこそこ相関がある変数も除外されてしまう可能性がある
+
+    - $E[Y|X]$ の近似のためであれば、(Tuning parmeterが正しく選ばれている限り)、許容できる (Bias-variance Tradeoff)
+
+- $D$ との相関が強い (分布がUnbalance)な変数が除外されると $\beta_D$ の推定結果が大きな影響を受ける
+
+    - $\tau$ の推定という目標について、モデルが過度に単純化される (Regulization bias)
+
+## Double Selection Algorithm
+
+1. $g_Y(X)$ および $g_D(X)$ をLASSOで推定し、選択された変数を記録
+
+2. **どちらかの**予測モデルで選択された変数 $(Z)$ のみを用いて、 $Y\sim D + Z$ を回帰
+
+- $Y$の予測モデルと$D$の予測モデルによる"ダブルチェック"
+
+## 実装
+
+- hdm packageが有益
+
+```{r}
+#| echo: true
+#| eval: false
+
+rlassoEffect(
+  x = X, # Must be matrix
+  d = D, # Must be vector
+  y = Y # Must be vector
+)
+```
+
+- 注: Tuning parameterは、交差推定ではなく、理論値を使用
+
+## 実践
+
+- かなり制約的なアプローチ (Variable selectionを行うAlgorithmしか使えない)
+
+    - 後日、より柔軟なアプローチを紹介
+    
+- 今でも多くの応用研究が、 Robustness checkとして活用
+
+    - 最終的にはOLSなので、Editor/Referee に理解させやすい!?
+    
+    - すぐに活用できるという意味で、十分に実践的
+    
+        - OLSでコントロールしている自身の研究があれば、使ってみてください!!!
+
+## Example: @bona2022gender
+
+- 就業形態や教育歴、家族背景等をバランスさせたもとでの、男女間賃金格差を推定
+
+    - 二乗項と交差項を加えて、9045変数が元々のコントロール変数
+    
+    - Double Selectionにより、5,821変数を選択
+
+# Example: CPS1988
+
+```{r}
+library(tidyverse)
+library(recipes)
+library(hdm)
+
+data("CPS1988",package = "AER")
+
+Y = CPS1988$wage |> log()
+D = case_when(
+  CPS1988$parttime == "yes" ~ 1,
+  CPS1988$parttime == "no" ~ 0
+)
+
+X_No_experience = CPS1988 |> 
+  model.matrix(
+    ~ (ethnicity + smsa + region + education) + 
+      I(education^2),
+    data = _
+  )
+
+X_No_experience = X_No_experience[,-1]
+
+X = CPS1988 |> 
+  model.matrix(
+    ~ ethnicity + smsa + region +
+      education + experience,
+    data = _
+  )
+
+X = X[,-1]
+
+X_Flex = CPS1988 |> 
+  select(
+    education:region
+  ) |> 
+  model.matrix(
+    ~ (.^2) +
+      I(education^2) + I(experience^2),
+    data = _) |> 
+  scale()
+
+X_Flex = X_Flex[,-1]
+
+DoubleSelection = hdm::rlassoEffect(
+  x = X_Flex,
+  d = D,
+  y = Y
+  )
+
+
+Temp = estimatr::lm_robust(
+  Y ~ D + X_No_experience
+  ) |> 
+  estimatr::tidy() |> 
+  filter(
+    term == "D"
+  ) |> 
+  mutate(
+    Method = "Flexible Control excluding experience"
+  ) |> 
+  bind_rows(
+    estimatr::lm_robust(
+      Y ~ D + X
+    ) |> 
+  estimatr::tidy() |> 
+  filter(
+    term == "D"
+  ) |> 
+  mutate(
+    Method = "Simple Control"
+  )
+  ) |> 
+  bind_rows(
+    estimatr::lm_robust(
+  Y ~ D + X_Flex,
+  se_type = "classical"
+  ) |> 
+  estimatr::tidy() |> 
+  filter(
+    term == "D"
+  ) |> 
+  mutate(
+    Method = "Flexible Control without robust CI"
+  )
+  ) |> 
+  bind_rows(
+    estimatr::lm_robust(
+  Y ~ D + X_Flex[,DoubleSelection$selection.index]) |> 
+  estimatr::tidy() |> 
+  filter(
+    term == "D"
+  ) |> 
+  mutate(
+    Method = "Double Selection (Recommended)"
+  )
+  )
+```
+
+## Data
+
+- Use CPS1988 from AER package
+
+    - Sample size `{r} nrow(CPS1988)`
+    
+    - $Y=$ log wage, $D=$ partime (Parttime wage penalty)
+    
+    - $X=$ BaseLine (education, ethnicity, smsa, region) + experience
+    
+        - `{r} ncol(X)` variables
+
+## 推定方法
+
+- Flexible control excluding experience: BaseLineと、その二乗項と交差項をコントロールし、OLS推定
+
+- Simple control: BaseLine + experience。ただし二乗項や交差項は除外
+
+- Flexible control without robust CI: BaseLine + experienceと、その二乗項と交差項をコントロールし、OLS推定
+
+    - Robust stadard errorは計算できなかったので、classical standard errorを報告
+    
+- Double selection: Double selectionで変数選択
+
+
+## Comparison
+
+- 二乗項や交差項を加えることで、経験年数を追加的にバランスされた推定結果が顕著に異なる
+
+```{r}
+Temp |> 
+  mutate(
+    Method = factor(
+      Method,
+      levels = Temp$Method
+    )
+  ) |> 
+  ggplot(
+    aes(
+      y = Method,
+      x = estimate,
+      xmin = conf.low,
+      xmax = conf.high,
+      label = str_c(estimate |> round(2),
+                    "(",
+                    std.error |> round(2),
+                    ")")
+    )
+  ) +
+  theme_bw() +
+  geom_pointrange() +
+  ggrepel::geom_text_repel()
+```
+
+
+## Selected Variable
+
+- 教育年数や学歴の二乗項も残る
+
+```{r}
+DoubleSelection$selection.index[
+  DoubleSelection$selection.index == TRUE
+]
+```
+
+
+## Reference
