@@ -54,7 +54,7 @@ execute:
 
 - $$E[Y|D,X]=\tau D+\beta_0+\underbrace{\beta_1X_1+..+\beta_LX_L}_{L > 事例数でもOK}$$
 
-- (Approximately) sparsity: 事例数に比べて、十分に少ない変数数 $S<<$$ 事例数で、母平均をうまく近似できる
+- (Approximately) sparsity: 事例数に比べて、十分に少ない変数数 $S<<$ 事例数で、母平均をうまく近似できる
 
 - 実戦: 十分に複雑なモデルについてLASSOを推定し、変数選択
 
@@ -88,9 +88,7 @@ execute:
 
 - $\lambda=0$ と設定すれば、 (複雑なモデルを)OLSで推定した推定結果と一致
 
-- $$Y-g_Y(X)=\underbrace{Y - E[Y|X]}_{不変}$$ $$+\underbrace{E[Y|X] - g_{Y,\infty}(X)}_{小さい}+\underbrace{g_{Y,\infty}(X) - g_Y(X)}_{大きい傾向}$$
-
-- すべての変数が活用される
+    - すべての変数が活用される
 
 ## $\lambda$ の役割: 平均
 
@@ -152,11 +150,11 @@ execute:
 
 - 問題点: LASSOによる変数選択は、$Y$ とそこそこ相関がある変数も除外されてしまう可能性がある
 
-    - $E[Y|X]$ の近似のためであれば、(Tuning parmeterが正しく選ばれている限り)、許容できる (Bias-variance Tradeoff)
+    - $E[Y|X]$ の近似が目的であれば、(Tuning parmeterが正しく選ばれている限り)、許容できる 
 
 - $D$ との相関が強い (分布がUnbalance)な変数が除外されると $\beta_D$ の推定結果が大きな影響を受ける
 
-    - $\tau$ の推定という目標について、モデルが過度に単純化される (Regulization bias)
+    - $\tau$ の推定という目標に対して、モデルが過度に単純化される (Regulization bias)
 
 ## Double Selection Algorithm
 
@@ -187,8 +185,8 @@ rlassoEffect(
 
 - かなり制約的なアプローチ (Variable selectionを行うAlgorithmしか使えない)
 
-    - 後日、より柔軟なアプローチを紹介
-    
+    - より柔軟なアプローチが多く提案
+  
 - 今でも多くの応用研究が、 Robustness checkとして活用
 
     - 最終的にはOLSなので、Editor/Referee に理解させやすい!?
