@@ -1,0 +1,390 @@
+---
+title: "労働経済学"
+author: "川田恵介"
+format:
+  revealjs:
+    incremental: true 
+    slide-number: true
+    html-math-method: katex
+  pdf:
+    pdf-engine: lualatex
+    documentclass: ltjsarticle 
+    toc: true
+    toc-depth: 3
+    number-sections: true
+bibliography: "ref.bib"
+execute: 
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+library(tidyverse)
+library(recipes)
+library(hdm)
+
+data("CPS1985",package = "AER")
+
+Data = CPS1985 |> 
+  recipe(
+    wage ~ .,
+    data = _
+  ) |> 
+  step_dummy(
+    gender
+  ) |> 
+  prep() |> 
+  bake(
+    new_data = NULL
+  )
+```
+
+# 比較研究
+
+- 研究の主たる関心とする変数を絞り込むことで、より頑強かつ透明性の高い分析が可能になる
+
+    - 因果推論なども含み、労働経済学における主要な分析手法
+
+## 比較研究
+
+- 特定の$Y$ と $D$ の関係性について関心があるケースが多い
+
+    - 例: 男女間賃金格差: $Y=Wage,D=Gender$
+
+## 単純差
+
+- グループ $D$ 間における単純平均差を推定したいのであれば、母平均の差 $E[Y|D=1]-E[Y|D=0]$ ないし、単回帰 $Y\sim D$ を推定すれば十分な応用がほとんど
+
+    - 研究として行う場合は、差が生じるの"理由"にも言及する場合が多い
+
+## 差の理由
+
+- なぜ差が生まれるのか？
+
+    - 本スライドでは、データから観察可能な他の変数 $X$ に注目
+    
+        - $X$ についての格差が、$Y$ の差をもたらしている
+        
+        - $X$ 以外についての格差が、 $Y$ の差をもたらしている
+
+- 例:男女間格差: 男女間での職業分布の違いがどの程度賃金格差をもたらしているのか
+
+    - $X=$ 職業
+    
+## Example: CPS1985
+
+```{r}
+CPS1985 |> 
+  select(
+    wage,
+    gender,
+    sector
+  ) |> 
+  gtsummary::tbl_summary(by = sector)
+```
+
+## Example Paper
+
+- Part-Time Pay Penalty: @manning2008part
+
+    - $D=$ Full/Part-Time, $Y=$ Income
+
+- Urban-Rural Income Gap: @sicular2007urban
+
+    - $D=$ Rural/Urban, $Y=$ Income
+
+- $X:$ 年齢、性別
+
+## 例: @dube2020monopsony
+
+- Online労働市場において、求人が提示する賃金水準 $(=D)$ と応募者数 $(=Y)$ はどのような関係にあるのか?
+
+    - 賃金が高い仕事は、高い技能が要求される/きつい... $(=X)$ 可能性がある
+
+    - 求人内容 $(=X)$ 以外の要因で、どの程度の差が生じているのか?
+    
+        - 労働市場の不完全性 (独占力)の指標 [@langella2021marshall]
+
+## 伝統的な方法
+
+- $X$ をコントロールする: 以下を推定 $$g_Y(D,X)=\underbrace{\beta_D}_{=X以外による格差}D+\underbrace{\beta_0 + \beta_1X_1+..}_{Xの影響を除去}$$
+
+- 課題
+
+    - コントロールとは？
+    
+    - 本当に$X$以外の理由による格差?
+
+- より精緻かつ明確な議論が必要
+
+
+# 線形モデルによる比較
+
+- 伝統的に用いられてきた方法
+  
+  - モデルの定式化に強く依存することに注意
+  
+## 線形モデルによる記述
+
+- $$g_Y(X) = \underbrace{\beta_D}_{Interest}\times D + \underbrace{\beta_0 + \beta_1X_1 + .. + \beta_LX_L}_{Nuisance\ term}$$
+
+- $\beta_D$ の解釈: $X$ を"一定にした上での" $D$ 間の格差
+
+- Estimand $=$ Best Linear Projection であることに注意
+
+    - 致命的にミスリードな推定結果となりうる
+
+## 数値例: OLS
+
+- $Y=\underbrace{D}_{\in \{0,1\}} + \underbrace{X^2}_{\sim Uniform(-2,2)} + \underbrace{u}_{\sim N(0,10)}$
+
+    - 独立している場合: 
+    
+        - $\Pr(D=1)=0.5$
+    
+    - 相関している場合: 
+    
+        - $\Pr(D=1|1\ge X \ge -1)=0.9$
+        
+        - $\Pr(D=1|X\ge 1 | X \le -1)=0.1$
+
+## 例: OLS (独立の場合)
+
+```{r}
+set.seed(1)
+N = 100
+
+Temp = tibble(
+  X = runif(N,-2,2),
+  D = sample(
+    0:1,
+    N,
+    replace = TRUE
+  ),
+  Y = D + X^2 + rnorm(N,0,5),
+  TrueY = D + X^2
+  )
+
+Pred = lm(
+  Y ~ D + X,
+  Temp
+)$fitted
+
+Temp |> 
+  mutate(
+    Pred
+  ) |> 
+  ggplot(
+    aes(
+      x = X,
+      y = Y,
+      color = D |> factor()
+    )
+  ) +
+  theme_bw() +
+  geom_point(
+    alpha = 0.5
+  ) +
+  geom_smooth(
+    aes(
+      y = Pred
+    ),
+    method = "lm",
+    se = FALSE
+  ) +
+  geom_smooth(
+    aes(
+      y = TrueY
+    ),
+    method = "lm",
+    se = FALSE,
+    formula = y ~ poly(x,2),
+    linetype = "dotted"
+  )
+```
+
+
+## 例: OLS (相関しているの場合)
+
+```{r}
+set.seed(1)
+N = 100
+
+Temp = tibble(
+  X = runif(N,-2,2),
+  D = case_when(
+    X >= -1 & X <= 1 ~ sample(
+      0:1,
+      N,
+      replace = TRUE,
+      prob = c(0.1,0.9)
+      ),
+    X < -1 | X > 1 ~ sample(
+      0:1,
+      N,
+      replace = TRUE,
+      prob = c(0.9,0.1)
+      )
+    ),
+  Y = D + X^2 + rnorm(N,0,5),
+  TrueY = D + X^2
+  )
+
+Pred = lm(
+  Y ~ D + X,
+  Temp
+)$fitted
+
+Temp |> 
+  mutate(
+    Pred
+  ) |> 
+  ggplot(
+    aes(
+      x = X,
+      y = Y,
+      color = D |> factor()
+    )
+  ) +
+  theme_bw() +
+  geom_point(
+    alpha = 0.5
+  ) +
+  geom_smooth(
+    aes(
+      y = Pred
+    ),
+    method = "lm",
+    se = FALSE
+  ) +
+  geom_smooth(
+    aes(
+      y = TrueY
+    ),
+    method = "lm",
+    se = FALSE,
+    formula = y ~ poly(x,2),
+    linetype = "dotted"
+  )
+```
+
+## まとめ
+
+- Linear Modelを用いた比較研究は、現在でもよく行われるが、定式化に強く依存することが懸念されてきた。
+
+- 様々な解決案が提案され、多様な方法論開発が進んでいる
+
+    - 機械学習の導入も有力視されている
+    
+- とりあえずOLSが何をやっているのか、しっかり理解することが重要
+
+# OLSの別解釈
+
+- $g_Y(D)=\beta_0 + \beta_DD + \beta_1X_1+..$ をOLSで推定する
+
+- (BLPの推定ではなく)Weight推定としても再解釈できる
+
+## OLS Algorithm: 単回帰
+
+- $g_Y(D)=\beta_DD+\beta_0$ をOLS推定すると $$\beta_D=\sum_{i:D_i=1}\underbrace{\frac{1}{N_{1}}}_{=W_i}Y_i -\sum_{i:D_i=0}\underbrace{\frac{1}{N_{0}}}_{=W_i}Y_i$$
+
+- 事例数の逆数をWeightとした比較と解釈できる
+
+    - 注: $\sum_{i:D_i=1}W_{1}=\sum_{i:D_i=0}W_{0}=1$
+
+## OLS Algorithm: General case
+
+1. 全ての$X=[X_1,..,X_L]$ について、$$\sum_{i:D_i=1}W_{i}X_{i,l}=\sum_{i:D_i=0}W_{i}X_{i,l},$$ $$\sum_{i:D_i=1}W_i=\sum_{i:D_i=0}W_i=1$$ を満たす $W$ から、分散が最も小さいものを選ぶ
+
+## OLS Algorithm: General case
+
+2. $$\beta_D=\sum_{i:D_i=1}W_{i}Y_i -\sum_{i:D_i=0}W_{i}Y_i$$
+
+## OLSの解釈
+
+- $Y$ のWeight付き平均差として解釈できる
+
+    - データ上で、$D$間で$X$ の平均値が"Balance"するようにWeightは選ぶ
+
+- $X^2$ もモデルに加えれば、$X^2$ の平均値 (分散)も等しくなるように選ばれる
+
+- $X_1*X_2$ もモデルに加えれば、$X_1,X_2$ の共分散も等しくなるように選ばれる
+
+# Constant Difference モデルによる解釈
+
+- 母集団に対する、かなり強い仮定を用いて、OLSの推定結果を解釈
+
+- 注記: 不必要に強い仮定であり、将来緩める
+
+## Constant Difference
+
+- $E[Y|1,X]-E[Y|0,X]=\tau$ を母集団上で仮定
+
+  - $\tau= X$ が全く同じ集団間での平均格差
+  
+      - " $X$ をコントロール/Ceteris paribus"
+      
+- 以下のモデルで表現できる $$Y=\tau\times D + \underbrace{h(X)}_{なんらかの関数} +\underbrace{u}_{=E[u|X]}$$
+
+    - Semiparametric estimationでは、 $h(X)$ はNuisance functionと呼ばれる
+
+## 単回帰の解釈
+
+- Yを代入すると $$\beta_D=\frac{\sum_{i:D_i=1}Y_i}{N_{1}} -\frac{\sum_{i:D_i=0}Y_i}{N_{0}}$$  $$=\frac{\sum_{i:D_i=1}(\tau_D + h(X_i) + u_i)}{N_{1}}$$ $$-\frac{\sum_{i:D_i=0}(h(X_i) + u_i)}{N_{0}}$$ 
+
+## 単回帰の解釈
+
+$$\beta_D=\tau_D + \underbrace{\Biggr[\frac{\sum_{i:D_i=1}h(X_i)}{N_{1}}-\frac{\sum_{i:D_i=0}h(X_i)}{N_{0}}\Biggr]}_{属性のずれ} $$
+
+$$+\underbrace{\frac{\sum_{i:D_i=1}u_i}{N_{1}}-\frac{\sum_{i:D_i=0}u_i}{N_{0}}}_{観察できない属性のずれ} $$
+
+## 母集団への含意 (事例数無限大)
+
+$$\beta_D=\tau_D + \beta_X\underbrace{\Biggr[\frac{\sum_{i:D_i=1}h(X_i)}{N_{1}}-\frac{\sum_{i:D_i=0}h(X_i)}{N_{0}}\Biggr]}_{\underbrace{\rightarrow}_{N_1,N_0\rightarrow\infty} E_X[h(X)|D=1]-E_X[h(X)|D=0]} $$
+
+$$+\underbrace{\frac{\sum_{i:D_i=1}u_i}{N_{1}}-\frac{\sum_{i:D_i=0}u_i}{N_{0}}}_{\rightarrow 0} $$
+
+- 観察できる属性のずれの影響が残る
+
+## 重回帰の解釈
+
+- Yを代入すると $$\beta_D=\sum_{i:D_i=1}W_{i}Y_i -\sum_{i:D_i=0}W_{i}Y_i$$  $$=\sum_{i:D_i=1}W_{i}(\tau_D + h(X_i) + u_i)$$ $$-\sum_{i:D_i=0}W_{i}(h(X_i) + u_i)$$
+
+## 重回帰の解釈
+
+- Yを代入すると $$\beta_D=\tau_D$$ $$+\underbrace{\Biggr[\sum_{i:D_i=1}W_{i}h(X_i)-\sum_{i:D_i=0}W_{i}h(X_i)\Biggr]}_{h(X)=\beta_0 + \beta_1Xであれば =0}$$ $$+\sum_{i:D_i=1}W_{i}u_i-\sum_{i:D_i=0}W_{i}u_i$$
+
+## 母集団への含意
+
+$$\beta_D=\tau_D + \beta_X\underbrace{\Biggr[\sum_{i:D_i=1}W_ih(X)-\sum_{i:D_i=0}W_ih(X)\Biggr]}_{h(X)=\beta_0 + \beta_1Xであれば =0} $$
+
+$$+\underbrace{\sum_{i:D_i=1}W_iu_i-\sum_{i:D_i=0}W_iu_i}_{\rightarrow 0} $$
+
+## Mis-specification
+
+- $g_Y(D,X)=\beta_0 + \beta_DD+\beta_1 X$ をOLS推定するが、$h(X)=\beta_0+\beta_1X+\beta_2X^2$ 
+
+    - $X$ の分散 ($X^2$) はBalanceしないので、$\beta_D$ は $\tau_D$ に(事例数が無限大でも)収束しない
+
+## Overfit
+
+- Mis-specificationを避けるためには、$X$ を十分に複雑にしてモデルに導入する必要がある
+
+- より多くの変数の平均値を揃える必要があるので、 Weight $W_i$ の分散が大きくなる
+
+- 特定の個人( $u_i$ )の影響が非常に強くなり、推定精度が悪化
+
+
+## まとめ
+
+- OLS $=X$ の平均値をBalanceさせるAlgorithm
+
+    - 高次項 $(X_1^2,X_1^3,X_1\times X_2...)$ を導入すると、$X$ の分布をBalanceさせられる
+    
+    - 弊害: Weightの分散が大きくなり、推定精度が悪化する
+    
+- 課題: "重要な"XのみBalanceさせたい
+
+
+## Reference

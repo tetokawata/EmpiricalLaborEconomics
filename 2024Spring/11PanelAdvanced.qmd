@@ -1,0 +1,157 @@
+---
+title: "Staggered designにおけるパネル推定"
+author:
+  - name: 川田恵介
+format:
+  revealjs:
+    incremental: true 
+    slide-number: true
+    html-math-method: katex
+  pdf:
+    pdf-engine: lualatex
+    documentclass: ltjsarticle 
+    toc: true
+    toc-depth: 3
+    number-sections: true
+bibliography: "ref.bib"
+execute: 
+  echo: false
+  warning: false
+  message: false
+---
+
+# 異質性を考慮したパネル推定
+
+- 活発な議論が行われた
+
+    - @roth2023s, @miller2023introductory, @de2023two 参照
+
+- ここでは @sun2021estimating の方法を紹介
+
+    - コホート別動学効果を集計する
+
+## コホート別動学効果
+
+- $$E[Y_{i,t}|e,l,f_i]=\sum_{l}\beta_{e,l}\mathbb{I}(e,t-e=l)+f_i+f_t$$
+
+    - $\beta_{e,l}$ $e$期目に介入を受けるグループにおける、 介入発生から $l$ 期経過した場合の因果効果
+
+    - $\beta_{e,-1} =0$ と基準化
+
+- 介入発生からの期間 $l$ と介入を受ける時期 $e$ (コホート)に応じて、異なる平均効果を便宜的に推定
+
+## @sun2021estimating
+
+- 各コホート $e$ とcontrol groupを使って、コホート単位で平均動学効果を推定する。
+
+## 例. コホート期間別平均効果
+
+```{r}
+library(tidyverse)
+library(fixest)
+SimData <- function(NumPeriod, Cutoff, NumID) {
+  Temp = map_dfr(
+    1:NumID,
+    function(x){
+      temp = tibble(ID = rep(x,NumPeriod),
+                    Period = seq(1,NumPeriod),
+                    TreatGroup = sample(
+                      0:1,
+                      1) |> rep(NumPeriod))
+      return(temp)
+    }
+    ) |> 
+    mutate(
+      Y = case_when(
+        TreatGroup == 1 & Period == Cutoff ~ 1,
+        TreatGroup == 1 & Period > Cutoff ~ 5,
+        .default = 0
+      ) + rnorm(NumPeriod*NumID,0,10),
+      D = case_when(
+        TreatGroup == 1 & Period >= Cutoff ~ 1,
+        .default = 0
+      )
+    )
+  return(Temp)
+}
+
+DataLong = SimData(4,3,500) |> 
+  mutate(
+    Group = 3
+  ) |> 
+  bind_rows(
+    SimData(4,4,500) |> 
+  mutate(
+    Group = 4
+  )
+  ) |> 
+  mutate(
+    Group = case_when(
+      TreatGroup == 1 ~ Group,
+      .default = 10000
+    )
+  )
+```
+
+```{r}
+#| echo: true
+
+Model = feols(
+  Y ~ sunab(Group,Period) | ID + Period,
+  DataLong,
+  cluster = ~ ID
+)
+
+summary(Model, agg = FALSE)
+```
+
+## 期間別平均効果
+
+- $\beta_{e,l}$ の $e$ についての平均値
+
+```{r}
+#| echo: true
+summary(Model, agg = "period")
+```
+
+## コホート別平均効果
+
+- $\beta_{e,l}$ の $l$ についての平均値
+
+```{r}
+#| echo: true
+summary(Model, agg = "cohort")
+```
+
+## 平均効果
+
+- $\beta_{e,l}$ の平均値
+
+```{r}
+#| echo: true
+summary(Model, agg = "ATT")
+```
+
+## コントロール変数との併用
+
+- 個人内で変化する変数 $X$ は導入可能 $\beta_1X_{1,it}+..\beta_LX_{L,it}$
+
+- 問題点: Cross sectionと同様に、介入の影響を受けない変数のみ導入すべき
+
+    - 過去のイベントの影響を受けない変数とは???
+
+- @callaway2021difference : 時間を通じて変化しない変数 (生まれ年、性別等)について、"マッチング"を行し推定
+
+    - [did](https://cran.r-project.org/web/packages/did/vignettes/did-basics.html)
+
+## まとめ
+
+- 介入変数 $D$ が２値の場合、推奨は
+
+    - ２期間パネル: ずっと介入を受け続けているグループを排除し、通常のTwo-way fixed effect modelで推定
+    
+    - 多期間パネル: Staggered design になっているか確認し、問題なければ @sun2021estimating (他の手法は、@roth2023s, @miller2023introductory, @de2023two などを参照) などの手法を用いて推定
+
+- $D$ が連続変数のケースなどの一般化は可能? [@callaway2024difference]
+
+# Reference

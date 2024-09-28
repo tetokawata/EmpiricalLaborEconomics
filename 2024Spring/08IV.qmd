@@ -1,0 +1,320 @@
+---
+title: "Instrumental Variables"
+subtitle: "Experimental perthpective"
+author: "川田恵介"
+format:
+  revealjs:
+    incremental: true 
+    slide-number: true
+    html-math-method: katex
+  pdf:
+    pdf-engine: lualatex
+    documentclass: ltjsarticle 
+    toc: true
+    toc-depth: 3
+    number-sections: true
+bibliography: "ref.bib"
+execute: 
+  echo: false
+  warning: false
+  message: false
+  eval: true
+---
+
+# 操作変数法
+
+```{r}
+library(tidyverse)
+library(rdrobust)
+library(rddensity)
+```
+
+- 局所的な実験的状況を活用する[代表的手法](https://www.nobelprize.org/prizes/economic-sciences/2021/press-release/)(その2)
+
+    - 介入を"誘発"する実験的状況を活用
+
+- 不適切な状況で乱用される傾向があったので注意
+
+    - 前期では最も"安心して"使える状況に焦点を当てる
+
+## Example
+
+- Research question $=$ データ分析技能訓練 $=D$ が、30歳時点の所得 $=Y$ に与える因果効果
+
+```{dot}
+digraph {
+    rankdir=LR;
+    node [shape = box];
+    X [label = "X: 興味/関心"];
+    D [label = "D: 参加"];
+    Y [label = "Y: 賃金"]
+    X -> D,Y
+    D -> Y [label = "Causal Effect" color = "red"]
+    {rank = same; D,X}
+}
+```
+
+## Example: Encouragement Design
+
+- 操作変数: 技能訓練参加費の割引クーポン $(=Z)$ をランダム配布
+
+```{dot}
+digraph {
+    rankdir=LR;
+    node [shape = box];
+    X [label = "X: 興味/関心"];
+    D [label = "D: 参加"];
+    Y [label = "Y: 賃金"];
+    Z [label = "Z: クーポン"]
+    X -> D,Y
+    D -> Y [label = "Causal Effect" color = "red"]
+    Z -> D
+    {rank = same; D,X}
+}
+```
+
+## Example: Encouragement Design
+
+- クーポン配布が以下を満たすのであれば、操作変数として活用できる
+
+    - ($X$内で)ランダムに配布される
+
+    - クーポンは、技能訓練のみを通じて、賃金に影響を与える
+
+        - クーポンの有無に関わらず、参加する/しない事例については、賃金は変化しない
+        
+    - クーポンは、技能訓練への参加を促進する
+
+## Example: Encouragement Design
+
+- クーポンはランダムに配布されているので、
+
+    - $E[Y|Z=1] - E[Y|Z=0]=$ "クーポン"の賃金への因果効果
+
+    - $E[D|Z=1] - E[D|Z=0]=$ "クーポン"の職業訓練への因果効果
+
+## Example: Encouragement Design
+
+- クーポンは、技能訓練のみを通じて、賃金に影響を与えるので、 $$E[Y|Z=1] - E[Y|Z=0]$$ $$= 職業訓練の因果効果 \times \{E[D|Z=1] - E[D|Z=0]\}$$
+
+- $$職業訓練の因果効果=\frac{E[Y|Z=1] - E[Y|Z=0]}{\underbrace{E[D|Z=1] - E[D|Z=0]}_{>0}}$$
+
+## Example. Twin experiment
+
+- @griffen2015fertility
+
+- 「女性の労働供給」の議論の中で、子供が与える影響は大きな論点
+
+    - 子育て負担が女性に集中しがち $\rightarrow$ 労働供給減少
+    
+    - 生活/教育費の増大 $\rightarrow$ 労働供給増加
+
+- 子供数の決定には、無数の背景変数
+
+## Example. Twin experiment
+
+
+```{dot}
+digraph {
+    rankdir=LR;
+    node [shape = box];
+    X [label = "背景属性"];
+    D [label = "D: 子供の数"];
+    Y [label = "Y: 労働供給"];
+    X -> D,Y
+    D -> Y [label = "Causal Effect" color = "red"]
+    {rank = same; D,X}
+}
+```
+
+
+
+## Example. Twin experiment
+
+- 操作変数: 双子が生まれたかどうか
+
+```{dot}
+digraph {
+    rankdir=LR;
+    node [shape = box];
+    X [label = "背景属性"];
+    D [label = "D: 子供の数"];
+    Y [label = "Y: 労働供給"];
+    Z [label = "双子"];
+    X -> D,Y
+    D -> Y [label = "Causal Effect" color = "red"]
+    Z -> D
+    {rank = same; D,X}
+}
+```
+
+# 2 by 2 Case
+
+- RD同様に、局所的な平均効果を推定していることに注意
+
+    - $Z/D$ が２値変数であれば、明示可能
+
+- $D$ の因果効果を理解するための、$Z$ についての実験であるという見方が（理解の上で）有益
+
+## 識別の仮定
+
+- $X$ が同じであれば、$Z$ はランダムに決まっている (Conditional independence)
+
+- すべての$x,z$ について、 $0 < \Pr[z|X=x] < 1$ (Positivity)
+
+- 他者の$d,z$に影響を受けない (No interference)
+
+## ４類型
+
+- $Z$ が $D$ に与える因果的影響について、４種類に分類できる
+
+| Type | Dが0の場合 | Dが1の場合 |
+|:----:|:----------:|:----------:|
+| Always taker(A) | 1 | 1 |
+| Never taker(N) | 0 | 0 |
+| Complier(C) | 0 | 1 |
+| Defier(D) | 1 | 0 |
+
+## 追加の識別の仮定
+
+- ComplierかDefierについて、
+
+    - どちらかは存在する (Relevance)
+
+    - どちらか一方のみ存在する (Monotonicity)
+
+- Always takerおよびNever takerについては、Zは因果効果を持たない (Exclusive restriction)
+
+## Intention-to-treat
+
+- $Z$ の $Y$ への因果効果: $$\tau_Z(X)=E[Y|Z=1,X]-E[Y|Z=0,X]$$
+
+## 分解
+
+- $$\tau_Z(X)=Aの割合\times \underbrace{A内での平均因果効果}_{=0\ (ExclusiveRestriction)}$$ $$+Nの割合\times \underbrace{N内での平均因果効果}_{=0\ (ExclusiveRestriction)}$$ $$+Cの割合\times C内での平均因果効果$$  $$+\underbrace{Dの割合}_{=0\ (Monotonicity)}\times D内での平均因果効果$$
+
+## 分解
+
+- $$\tau_Z(X)=\underbrace{Cの割合}_{E[D|1,X] - E[D|0,X]}\times C内での平均因果効果$$
+
+- $$C内での平均因果効果=\frac{IT(X)}{\underbrace{E[D|1,X] - E[D|0,X]}_{\neq0\ (Relevance)}}$$
+
+- 操作変数法は、Complier (操作変数に反応するグループ) 内での平均因果効果(Local Average Treatment Effect)を識別する
+
+## 推定
+
+- $Z$ の $Y$ への平均効果の推定値 $\bar\tau_Y$ / $Z$ の $D$ への平均効果の推定値 $\bar\tau_D$ として推定可能
+
+    - Bootstrap法を用いて、信頼区間も計算可能 (Chap 22 in @ding2023first)
+
+## 推定: Two-stage least square
+
+- 代表的な推定方法
+
+1. $D\sim Z$ をOLS回帰し、$D$ の予測モデル $g_D(Z)=\bar\beta_ 0 + \bar\beta_ZZ$ を推定
+
+2. $Y\sim g_D(Z)$ をOLS回帰し、Local Average Treatment Effectの推定値とする
+
+## 拡張: Two-stage least square
+
+- コントール変数 $X$ 導入、$Z$ や $D$ が連続変数であったとしても、Two-stage least squareは適用可能
+
+    - 解釈が難しい
+    
+    - より"経済学的な解釈に依存した操作変数"とともに、後期に議論します。
+
+## ivregを用いた実装
+
+```{r}
+#| echo: true
+library(ivreg)
+library(tidyverse)
+
+Data = read_csv("CPS1985.csv")
+
+Model = ivreg(
+  wage ~ married | 
+    union,
+  data = Data
+)
+```
+
+## ivregを用いた実装
+
+```{r}
+#| echo: true
+
+summary(Model)
+```
+
+# 仮定の検討
+
+- 慎重に活用すべき
+
+    - 操作変数を使った方が、推定結果が改善するケースは、"限定的"
+
+        - 「$Z$ の因果効果を$D$ の因果効果を解釈する」という"離れ業"をしていることを常に念頭に
+
+## Conditional independency
+
+- 操作変数はランダム化されている必要がある
+
+     - 活用できる自然実験の範囲を広げているだけであり、自然実験自体は必要
+
+## Exclusive restriction
+
+- "離れ業"を可能にしているものの、大問題の仮定
+
+- $D$ のみを通じて影響を与えるとは？、どのようにテストする?
+
+    - 方法論的にも未解決な課題
+
+## Relevance
+
+- 慎重にデザインされたEncouragement expeirmentが実施されていれば、以上の仮定は満たしやすい
+
+    - 実験の実現可能性も高まる ($D$ を高めるNudge的な介入など)
+
+    - Exclusive restrictionを満たすためには、十分に"弱い介入"である必要がある
+    
+        - $D=1$ にするために多額の"補助金"を投入すれば、Always takerであったとしても、$Y$が変化する可能性がある
+        
+- 弱くしすぎると、Relevanceが満たされにくくなる
+
+    - 「職業訓練を推奨する」というだけでは、誰も従わないかもしれない
+
+## Weak IV
+
+- $E[D|Z=1,X]-E[D|Z=0,X]=0$ であれば、識別不可能
+
+- $E[D|Z=1,X]-E[D|Z=0,X]$ が非常に小さければ、識別は可能だが、推定困難
+
+    - 推定誤差が爆発的に大きくなりうる
+
+## シンプルな対応
+
+-  Monotonicityが成り立つのであれば、 $E[Y|Z=1] - E[Y|Z=0]>0$ であれば、必ず $$\frac{E[Y|Z=1] - E[Y|Z=0]}{E[D|Z=1] - E[D|Z=0]}>0$$
+
+- $Y\sim Z$ を回帰し、$Z$ の係数値が"有意"であれば、Local average treatment effectも必ず"有意"に正と主張できる
+
+## 解釈問題
+
+- 局所的な因果効果であることに注意
+
+    - あくまでもComplier内の効果
+
+- 特にWeak IVのケースでは、かなり限られた層内での効果にすぎない恐れが強くなる
+
+    - 例: 「推奨する」という文言に反応する層内での効果
+
+## まとめ
+
+- 操作変数法の慎重な活用は、因果効果解明に活用できる実験の種類を増やす
+
+    - Encouragement experimentは、倫理的、予算的に活用可能な場面は多い
+    
+- ただし、通常のRCTと比べて、Exclusive restrictionが要求され、正当化が難しい
+
+    - Relevanceとの間にトレードオフが発生しがち
+
+## Reference

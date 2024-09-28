@@ -1,0 +1,502 @@
+---
+title: "補論: 不適切な統計的推論"
+author:
+  - name: 川田恵介
+format:
+  revealjs:
+    incremental: true 
+    slide-number: true
+    html-math-method: katex
+  pdf:
+    pdf-engine: lualatex
+    documentclass: ltjsarticle 
+    toc: true
+    toc-depth: 3
+    number-sections: true
+bibliography: "ref.bib"
+execute: 
+  echo: false
+  warning: false
+  message: false
+---
+
+# 多重検定問題
+
+```{r}
+library(tidyverse)
+```
+
+- 多くの$Y$や$X$の中から、"顕著"な関係性を探したい
+
+    - 一つ以上、明確なパラメータを発見したい
+
+- 統計的推論の前提が崩れることに注意
+
+    - @Imbens2021StatisticalSP, @list2019multiple
+
+    - @Viviano2021WhenSY, @bowen2022social
+
+## 労働経済学における探索の例
+
+- 複雑な現象/政策介入がなされており、大量の変数間の間での（因果的)関係性を理解したい
+
+    - 労働条件のどのような項目が、労働供給を増加させるのか？
+    
+    - ハローワーク内でのさまざまな介入の中で、特に有効なものはどれか?
+    
+- ここまでの議論、特に信頼区間周り、は関心のある $Y/D$ は一つであることが前提
+
+    - $X$ は無数にあっても良い
+
+## 多重検定問題
+
+- 複数の推定値から、大きな影響を持つものを発見しようとする場合、厳重注意が必要
+
+- $Y$ と全く関係性がない/全ての負の関係性がある $X$ から、正の関係性を持つものを誤って発見できてしまう
+
+- 'If you torture the data long enough, it will confess.' (Ronald H. Coase)
+
+
+## 悪例:
+
+- 新聞を読む人/読まない人を比較し、どのような違いがあるのか明らかにしたい
+
+    - "なぜか" 新聞を読む人の方が、良いことが起きると主張したい
+
+- 「独自に収集したサーベイデータをもとに、新聞を読む人と読まない人を比較した。結果読む人の方が、”友達が多い”という結果が出た。解釈としては、、、、」
+
+    - という文言のみを発表
+    
+        - どのくらいの特徴 $(=Y)$ について推定したのか、一切記載がない
+
+- 可能な限り事前に推定するestimandを絞り込む
+
+    - 推定した結果はすべて公表すべき
+    
+## 数値例
+
+- あるプロスポーツ団体において、コイントスで先行後攻を決めている
+
+    - 一部のチームが不正コインを使用しており、コイントスの結果が50:50になっていないのではないか?
+    
+        - **実際には不正はない** とする
+    
+- 各チームのコインを回収し、実際にコイントスを繰り返してテスト
+
+## Recap: 95 $\%$ 信頼区間
+
+- ある一つのコインについて、9名の研究者がコイントスを200回行い推定した
+
+```{r}
+
+Sim <- function(ResearchID,NumTarget,NumSample,Alpha){
+  TempFit <- map_dfr(
+    1:NumTarget,
+    function(target){
+    set.seed(ResearchID*target)
+    temp = estimatr::lm_robust(
+      sample(0:1,NumSample,replace = TRUE) ~ 
+        1,
+      alpha = Alpha) |> 
+      generics::tidy() |> 
+      mutate(
+        TargetID = target
+      )
+    })
+  TempResult <- TempFit |> 
+    mutate(
+    ResearcherID = ResearchID
+  )
+  return(TempResult)
+}
+
+map_dfr(
+  1:4,
+  function(R){Sim(R,1,200,0.05)}) |> 
+  mutate(
+    Error = if_else(
+      conf.low >= 0.5 |
+        conf.high <= 0.5,
+      "Invalid",
+      "Valid"
+    )
+  ) |> 
+  ggplot(
+    aes(
+      x = estimate,
+      xmin = conf.low,
+      xmax = conf.high,
+      y = TargetID,
+      color = Error
+    )
+  ) +
+  theme_bw() +
+  geom_vline(xintercept = 0.5) +
+  geom_pointrange() +
+  facet_wrap(~ ResearcherID)+
+  xlim(0.25,0.75)
+```
+
+## 例. 多重検定
+　　
+- **50**個のコインについて、推定した
+
+```{r}
+map_dfr(
+  1:9,
+  function(R){Sim(R,50,200,0.05)}) |> 
+  mutate(
+    Error = if_else(
+      conf.low >= 0.5 |
+        conf.high <= 0.5,
+      "Invalid",
+      "Valid"
+    )
+  ) |> 
+  ggplot(
+    aes(
+      x = estimate,
+      xmin = conf.low,
+      xmax = conf.high,
+      y = TargetID,
+      color = Error
+    )
+  ) +
+  theme_bw() +
+  geom_vline(xintercept = 0.5) +
+  geom_pointrange() +
+  facet_wrap(~ ResearcherID)+
+  xlim(0.25,0.75)
+```
+
+## 直感
+
+- 間違って出た明確な結果 $=$ 目立ちたい研究者にとっての当たりくじ (5%の確率で引ける)
+
+    - どんなに当たりにくいくじでも、無限に引けば当たる
+    
+- 何回引いた(パラメタを推定した)結果、出たくじなのかを必ず明示する
+
+## Family-wise confience interval
+
+- 複数の信頼区間について、**一つ以上** ミスを犯す確率を一定以下(5%)に抑える
+
+    - $\iff$ 通常の信頼区間 $=$ 特定のパラメタについてミスを犯す確率を抑える
+    
+- Study-wise confidence intervalとも呼ばれる
+
+- 信頼区間を適切に広げる形で修正
+
+    - 広げ方について様々な提案
+
+## Bonferoni法
+
+- かなり保守的な修正法
+
+- $k$個のパラメタについて、一つ以上ミスを犯す確率を5%以下に抑えたいのであれば、$5/k\%$ 信頼区間を計算
+
+- パラメタが増えると無限に広くなる
+
+    - 他の方法については、[Introduction to statistical learning](https://www.statlearning.com/) 13章 参照
+
+## 例. Bonferoni法
+
+```{r}
+map_dfr(
+  1:9,
+  function(R){Sim(R,50,200,0.05/50)}) |> 
+  mutate(
+    Error = if_else(
+      conf.low >= 0.5 |
+        conf.high <= 0.5,
+      "Invalid",
+      "Valid"
+    )
+  ) |> 
+  ggplot(
+    aes(
+      x = estimate,
+      xmin = conf.low,
+      xmax = conf.high,
+      y = TargetID,
+      color = Error
+    )
+  ) +
+  theme_bw() +
+  geom_vline(xintercept = 0.5) +
+  geom_pointrange() +
+  facet_wrap(~ ResearcherID) +
+  xlim(0.25,0.75)
+```
+
+# 厳重注意: $Y$による分割
+
+- 労働経済学において、しばしば $Y$ でサンプルを分割した、サブサンプル分析をしたくなる"誘惑"に駆られる
+
+    - 通常の統計的推論は不可能になる
+    
+    - $X$ による分解は問題ない
+ 
+- @abadie2018endogenous
+
+## 例. Xによる分割
+
+```{r}
+SimData <- function(i,n,s) {
+  set.seed(i)
+  x = runif(
+    n,
+    0,10
+  )
+  y = x + runif(n,-s,s)
+  temp = tibble(
+    x,
+    y
+  )
+}
+
+TempData = SimData(1,300,20)
+
+estimatr::lm_robust(
+  y ~ x,
+  TempData,
+  subset = x <= mean(TempData$x)
+  ) |> 
+  generics::tidy() |> 
+  mutate(
+    Sample = "Xが平均より低い"
+  ) |> 
+  bind_rows(
+    estimatr::lm_robust(
+  y ~ x,
+  TempData,
+  subset = x > mean(TempData$x)
+  ) |> 
+  generics::tidy() |> 
+  mutate(
+    Sample = "Xが平均より高い"
+  )
+  ) |> 
+  bind_rows(
+    estimatr::lm_robust(
+  y ~ x,
+  TempData
+  ) |> 
+  generics::tidy() |> 
+  mutate(
+    Sample = "全サンプル"
+  )
+  ) |> 
+  filter(
+    term == "x"
+  ) |> 
+  ggplot(
+    aes(
+      x = estimate,
+      xmin = conf.low,
+      xmax = conf.high,
+      y = Sample
+    )
+  ) +
+  theme_bw() +
+  geom_pointrange() +
+  geom_vline(xintercept = 1)
+```
+
+## 例. Yによる分割
+
+```{r}
+estimatr::lm_robust(
+  y ~ x,
+  TempData,
+  subset = y <= mean(TempData$y)
+  ) |> 
+  generics::tidy() |> 
+  mutate(
+    Sample = "Yが平均より低い"
+  ) |> 
+  bind_rows(
+    estimatr::lm_robust(
+  y ~ x,
+  TempData,
+  subset = y > mean(TempData$y)
+  ) |> 
+  generics::tidy() |> 
+  mutate(
+    Sample = "Yが平均より高い"
+  )
+  ) |> 
+  bind_rows(
+    estimatr::lm_robust(
+  y ~ x,
+  TempData
+  ) |> 
+  generics::tidy() |> 
+  mutate(
+    Sample = "全サンプル"
+  )
+  ) |> 
+  filter(
+    term == "x"
+  ) |> 
+  ggplot(
+    aes(
+      x = estimate,
+      xmin = conf.low,
+      xmax = conf.high,
+      y = Sample
+    )
+  ) +
+  theme_bw() +
+  geom_pointrange()+
+  geom_vline(xintercept = 1)
+```
+
+## "正しいモデル"の推定の前提
+
+- $E[Y|D]=\beta_0 + \beta_1X$ ならば、 $$Y=\beta_0 + \beta_1X+\underbrace{u}_{E[u|X]=0}$$
+
+- $Y$ によって分割されると $E[u|X]\neq0$
+
+- $X$ による分割では、$E[u|X]=0$
+
+## 例. Yによる分割
+
+```{r}
+LineLowerMeanY = estimatr::lm_robust(
+  y ~ x,
+  TempData,
+  subset = y <= mean(TempData$y)
+  ) |> 
+  predict(TempData)
+
+LineUpperMeanY = estimatr::lm_robust(
+  y ~ x,
+  TempData,
+  subset = y > mean(TempData$y)
+  ) |> 
+  predict(TempData)
+
+TempData |> 
+  mutate(
+    LineLowerMeanY,
+    LineUpperMeanY
+  ) |> 
+  mutate(
+    Group = case_when(
+      y <= mean(y) ~ "平均値以下" ,
+      y >= mean(y) ~ "平均値以上"
+    )
+  ) |> 
+  ggplot(
+    aes(
+      x = x,
+      y = y
+    )
+  ) +
+  theme_bw() +
+  geom_point(
+    aes(
+      color = Group
+    )
+  ) +
+  geom_smooth(
+    aes(
+      color = "全サンプル"
+    ),
+    method = "lm",
+    se = FALSE
+  ) +
+  geom_line(
+    aes(
+      y = LineUpperMeanY,
+      color = "平均値以上"
+    )
+  ) +
+  geom_line(
+    aes(
+      y = LineLowerMeanY,
+      color = "平均値以下"
+    )
+  ) +
+  geom_abline(
+    aes(
+      color = "母平均"
+    ),
+    intercept = 0,
+    slope = 1
+  )
+```
+
+
+## 例. Xによる分割
+
+```{r}
+LineLowerMeanY = estimatr::lm_robust(
+  y ~ x,
+  TempData,
+  subset = x <= mean(TempData$x)
+  ) |> 
+  predict(TempData)
+
+LineUpperMeanY = estimatr::lm_robust(
+  y ~ x,
+  TempData,
+  subset = x > mean(TempData$x)
+  ) |> 
+  predict(TempData)
+
+TempData |> 
+  mutate(
+    LineLowerMeanY,
+    LineUpperMeanY
+  ) |> 
+  mutate(
+    Group = case_when(
+      x <= mean(x) ~ "平均値以下" ,
+      x >= mean(x) ~ "平均値以上"
+    )
+  ) |> 
+  ggplot(
+    aes(
+      x = x,
+      y = y
+    )
+  ) +
+  theme_bw() +
+  geom_point(
+    aes(
+      color = Group
+    )
+  ) +
+  geom_smooth(
+    aes(
+      color = "全サンプル"
+    ),
+    method = "lm",
+    se = FALSE
+  ) +
+  geom_line(
+    aes(
+      y = LineUpperMeanY,
+      color = "平均値以上"
+    )
+  ) +
+  geom_line(
+    aes(
+      y = LineLowerMeanY,
+      color = "平均値以下"
+    )
+  ) +
+  geom_abline(
+    aes(
+      color = "母平均"
+    ),
+    intercept = 0,
+    slope = 1
+  )
+```
+
+
+## Reference
+

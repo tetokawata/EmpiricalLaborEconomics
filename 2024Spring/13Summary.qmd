@@ -1,0 +1,333 @@
+---
+title: "まとめ"
+author:
+  - name: 川田恵介
+format:
+  revealjs:
+    incremental: true 
+    slide-number: true
+    html-math-method: katex
+  pdf:
+    pdf-engine: lualatex
+    documentclass: ltjsarticle 
+    toc: true
+    toc-depth: 3
+    number-sections: true
+bibliography: "ref.bib"
+execute: 
+  echo: false
+  warning: false
+  message: false
+---
+
+
+
+# 復習
+
+## イメージ図: Naive
+
+```{dot}
+digraph {
+    rankdir=TB;
+    newrank=true;
+    node[fontsize = "10pt", shape = none]
+    edge[arrowsize=0.3]
+    Q [label = "Research Question"]
+    Est [label = "統計モデルを推定:\n OLS,最尤法,ベイズ法など"]
+    Result [label = "推定結果"]
+    Q -> Est -> Result
+}
+```
+
+## イメージ図: 本講義
+
+```{dot}
+digraph {
+    rankdir=TB;
+    newrank=true;
+    node[fontsize = "10pt", shape = none]
+    subgraph cluster0 {
+     label = "Reserch Question"
+     fontsize="10pt"
+     node[shape = none, fontsize ="10pt"]
+     Causal [label = "因果効果"]
+     Inequal [label = "格差/記述的比較"]
+     {rank = "same"; Causal; Inequal}
+    } 
+    Result [label = "結果"]
+    Iden [label = "識別"]
+    Comparison [label = "比較分析"]
+    Est [label = "推定方法"]
+
+    edge[arrowsize=0.3]
+    
+    Causal -> Iden
+    Iden -> Comparison
+    Inequal -> Comparison
+    Comparison -> Est
+    Est -> Result
+    {rank = "same"; Iden; Comparison; Est}
+}
+```
+
+# 他のアプローチ
+
+## 予測研究
+
+- 近年、予測モデルの実務への活用が進む
+
+    - 特に機械学習 (AI) の活用が進む
+    
+- 観察できる情報 $X$ から、欠損情報 $Y$ を予測する
+    
+    - 個人差が大きいSocial outcome $Y$ の予測が難しい
+    
+        - 例: 一卵性の双子であったとしても、就く仕事や結婚状態、子供の数などは大きく異なる
+
+- 関心がある方は、
+
+## イメージ図: 予測研究
+
+```{dot}
+digraph {
+    rankdir=TB;
+    newrank=true;
+    node[fontsize = "10pt", shape = none]
+    subgraph cluster0 {
+     node[shape = none, fontsize ="10pt"]
+     label = "Reserch Question"
+     fontsize="10pt"
+     Causal [label = "因果効果"]
+     Inequal [label = "格差/記述的比較"]
+     Pred [label = "予測"]
+     {rank = "same"; Causal; Inequal; Pred}
+    } 
+    Result [label = "結果"]
+    Iden [label = "識別"]
+    Comparison [label = "比較分析"]
+    Est [label = "推定方法"]
+    ML [label = "予測モデル推定\n 機械学習"]
+    PredModel [label = "予測モデル"]
+    
+    edge[arrowsize=0.3]
+    
+    Causal -> Iden
+    Iden -> Comparison
+    Inequal -> Comparison
+    Comparison -> Est
+    Est -> Result
+    Pred -> ML
+    ML -> PredModel
+    {rank = "same"; Iden; Comparison; Est; ML}
+    {rank = "same"; Result; PredModel}
+}
+```
+
+## ハイブリットアプローチ
+
+- $X$ をバランスさせた上で、$D$ 間で $Y$ を比較するのであれば、2段階推定が有力
+
+1. $X$ から $Y,D$ を予測するモデルを推定
+
+2. $Y$ の予測誤差を $D$ の予測誤差で回帰する
+
+- 他にも多くのアプローチが開発
+
+    - 関心がある方は、
+
+
+## イメージ図: ハイブリット
+
+```{dot}
+digraph {
+    rankdir=TB;
+    newrank=true;
+    node[fontsize = "10pt", shape = none]
+    subgraph cluster0 {
+     node[shape = none, fontsize ="10pt"]
+     label = "Reserch Question"
+     fontsize="10pt"
+     Causal [label = "因果効果"]
+     Inequal [label = "格差/記述的比較"]
+     Pred [label = "予測"]
+     {rank = "same"; Causal; Inequal; Pred}
+    } 
+    Result [label = "結果"]
+    Iden [label = "識別"]
+    Comparison [label = "比較分析"]
+    Est [label = "推定方法"]
+    ML [label = "予測モデル推定\n 機械学習"]
+    PredModel [label = "予測モデル"]
+    
+    edge[arrowsize=0.3]
+    
+    Causal -> Iden
+    Iden -> Comparison
+    Inequal -> Comparison
+    Comparison -> Est
+    Est -> Result
+    Pred -> ML
+    ML -> PredModel
+    Est -> PredModel [dir = "back"]
+    {rank = "same"; Iden; Comparison; Est; ML}
+    {rank = "same"; Result; PredModel}
+}
+```
+
+# 経済学理論の活用: Etimandの解釈
+
+- 推定結果同士やデータから観察できない概念(社会厚生など)の接着剤として使用
+
+    - @mahoney2022principles , @donaldson2022blending
+
+## イメージ図: 理論の役割
+
+```{dot}
+digraph {
+    rankdir=TB;
+    newrank=true;
+    node[fontsize = "10pt", shape = none]
+    edge[arrowsize=0.3 fontsize = "10pt"]
+    subgraph cluster0 {
+     node[shape = none, fontsize ="10pt"]
+     label = "Reserch Question"
+     fontsize="10pt"
+     Causal [label = "因果効果"]
+     Inequal [label = "格差/記述的比較"]
+     {rank = "same"; Causal; Inequal}
+    } 
+    Result [label = "結果"]
+    Iden [label = "識別"]
+    Comparison [label = "比較分析"]
+    Est [label = "推定方法"]
+    Theory [label = "経済理論"]
+    Causal -> Iden
+    Iden -> Comparison
+    Inequal -> Comparison
+    Comparison -> Est
+    Est -> Result
+    Theory -> Inequal [label = "Motivation"]
+    Theory -> Result [dir = "back" label = "解釈"]
+    {rank = "same"; Iden; Comparison; Est; Theory}
+}
+```
+
+## 例: Monopsony
+
+- 労働市場における需要独占 (企業間の労働者獲得競争が緩く、労働者に低賃金を押し付けられる)についての研究
+
+- @dube2020monopsony : 提示賃金 $D$ と 応募者数 $Y$ に与える因果効果を推定
+
+    - 職務内容はバランスさせる
+
+- @okudaira2019minimum : 最低賃金 $D$ が雇用 $Y$ に与える因果効果を推定
+
+    - 労働の限界収入に応じた異質性分析
+
+- 一見すると $Y$ も $D$ も異なる全く別の研究に見えるが、同じMonopsonyを検証する分析だと解釈できる
+
+## 例: Monopsony
+
+- Monopsonyが発生しているのであれば、
+
+    - 提示賃金を引き上げても、応募者数はあまり減らない
+
+        - @dube2020monopsony が(米国のオンライン労働市場で)確認
+    
+    - 労働の限界収入と賃金が乖離する $\&$ 最低賃金の引き上げは、雇用を減らさない
+    
+        - @okudaira2019minimum が(日本において)確認
+
+## 例: Monopsony
+
+- Future research として、応募者があまり減らない市場で、最低賃金は雇用をより増やすのか?
+    
+    - 賃上げ政策について、含意
+
+# 経済学理論の活用: 経済モデルの推定
+
+- 経済理論に動機づけられた統計モデルを直接推定
+
+    - 構造推定
+    
+- 前提となる経済理論や推定上の仮定に結果が依存するが、議論の射程が広い
+
+- 興味がある人は、以下から始めるとわかりやすい
+
+    - [Note by Kohei Kawaguchi](https://kohei-kawaguchi.github.io/EmpiricalIO/index.html)
+
+## イメージ図: 構造推定
+
+
+```{dot}
+digraph {
+    rankdir=TB;
+    newrank=true;
+    node[fontsize = "10pt", shape = none]
+    edge[arrowsize=0.3]
+    subgraph cluster0 {
+     node[shape = none, fontsize ="10pt"]
+     label = "Reserch Question"
+     fontsize="10pt"
+     Causal [label = "因果効果"]
+     Inequal [label = "格差/記述的比較"]
+     {rank = "same"; Causal; Inequal}
+    } 
+    Theory [label = "経済理論"]
+    Model [label = "統計モデル"]
+    Est [label = "推定:\n 最尤法\nベイズ法\n敵対学習など"]
+    Sim [label = "シミュレーション"]
+    Result [label = "推定結果"]
+    Causal -> Theory
+    Inequal -> Theory
+    Theory -> Model -> Est -> Sim -> Result
+    {rank = same; Theory; Model; Est; Sim}
+}
+```
+
+
+## 例: @kaji2023adversarial (Chap 3.2.)
+
+- Roy model (with 敵対学習による推定)
+
+    - [方法論の紹介記事](https://www.chicagobooth.edu/review/can-automated-art-forgers-become-economists)
+
+- 目的: 特定の産業への賃金補助などが、労働市場に与える影響を推定
+
+- モデル: ２期間２産業Roy model
+
+    - 各期に就業する産業を選択
+
+    - 完全予見
+    
+    - 産業特殊的人的資本
+
+## 例: Roy model
+
+- 1期目の産業 $s$ における労働者 $i$ の賃金 $$w_{i1s}=\mu_{s} +\epsilon_{i1s}$$
+
+- 2期目の産業 $s$ における労働者 $i$ の賃金 $$w_{i1s}=\mu_{s} + \gamma_{s}\underbrace{\mathbb{1}\{d_{i1}=s\}}_{1期目に産業sで就業していれば1} + \epsilon_{i2s}$$
+
+- $d_{i1}/d_{i2}=$ 1/2期目に就業する産業
+
+- $\epsilon$ は同時正規分布に従う
+
+## 例: (Economic) Decision making
+
+- 2期目: 賃金が高い方で働く $$d_{i2}=1\iff w_{i21}\ge w_{i22}$$
+
+- 1期目: 2期目の賃金に与える影響も考えて、生涯所得最大化 $$d_{i1}=1$$ $$\iff w_{i11} + \beta E[w_{i2}|d_{i1}=1]$$ $$\ge w_{i12} + \beta E[w_{i2}|d_{i1}=2]$$
+
+## 例: Estimation
+
+- 以上のモデルを前提にすれば、データの分布 $\{w_{i1},w_{i2},d_{i1},d_{i2}\}$ は、有限個のパラメタで完全に記述できる
+
+    - Parametric model
+    
+- 原理的には最尤法、ベイズ法などで推定できる
+
+    - 他にも[Method of simulated moments](https://en.wikipedia.org/wiki/Method_of_simulated_moments)や敵対学習 [@kaji2023adversarial] の活用も提案されている
+    
+- Counterfactual simulationとして、たとえば産業$1$ への補助金 ( $\mu_1$ の増加)が賃金や労働分布に与える影響を算出できる
+
+## Reference

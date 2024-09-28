@@ -1,0 +1,476 @@
+---
+title: "Identification: Target Trial / Normative Commitment"
+subtitle: "労働経済学"
+author: "川田恵介"
+format:
+  revealjs:
+    incremental: true 
+    slide-number: true
+    html-math-method: katex
+  pdf:
+    pdf-engine: lualatex
+    documentclass: ltjsarticle 
+    toc: true
+    toc-depth: 3
+    number-sections: true
+bibliography: "ref.bib"
+execute: 
+  echo: false
+  warning: false
+  message: false
+  eval: true
+---
+
+# 識別
+
+- 労働経済学研究のデザイン: **何**を**どのように**推定するのか?
+
+    - ここまでの議論は**どのように** $E[Y|d',X] - E[Y|d,X]$ を推定するのか (Estimation)
+    
+    - 何を推定するのかは(より?)重要
+
+## Recap: Estimation
+
+- 前回までは、$E[Y|D=d,X] - E[Y|D=d',X]$ の特徴を推定する方法を議論
+
+    - 暫定的に $E[Y|D=d,X] - E[Y|D=d',X]=\tau$ を仮定
+    
+    - OLSを使用 $Y\sim D + X$
+    
+        - Double selectionによって、$X$ の重要な部分集合 $Z$ を特定し、 $Y \sim D + Z$ を推定
+        
+- Linear modelが前提であっても、そもそも何を$X$として使用するか?
+
+## Estimand
+
+- 「何を」をResearch question の設定とEstimandの定義に分割
+
+    - Research question $=$ 研究者が頑張って決める
+
+        - 経済学理論的動機、政策的動機、などを活用
+
+    - Estimand $=$ 母集団上で定義される推定対象: ここまでは $E[Y|d',X] - E[Y|d,X]$
+    
+        - 無限大の事例数の元で、どのようにResearch questionに答えられるか？
+    
+        - 因果推論、などを活用
+
+## Estimand
+
+```{dot}
+#| eval: true
+digraph {
+    rankdir=TB;
+    node [shape = box]; 
+    subgraph cluster_router0 {
+        label = "何を?"
+        研究課題[label = "Research question \n STEM教育の因果効果"]; 
+        Estimand;
+        Theory[label = "政策/理論的関心"];
+        CausalInference[label = "因果推論"];
+        研究課題 -> Estimand;
+        Theory -> 研究課題;
+        CausalInference -> Estimand;
+        {rank = same; Theory;研究課題}
+        {rank = same; Estimand;CausalInference}
+    }
+    subgraph cluster_router1 {
+        label = "どのように?"
+        Estimation[label = "Estimation \n Double selection"];
+        Inference[label = "統計学/機械学習"];
+        Inference -> Estimation
+        {rank = same; Inference;Estimation}
+    }
+    Estimand -> Estimation
+}
+```
+
+## まとめ
+
+- 推定にまつわるモデル化(変数選択を含む)、Estimandの定義にまつわるモデル化は、分けて議論する必要がある[@manski1995identification; @lundberg2021your]
+
+:::{.callout-warning icon="false"}
+## 非推奨!!!
+
+- "$Y$ に影響を与えそうな変数"を全て$X$として用いる
+
+    - 事例数が無限あったとしても、望ましくない帰結をもたらす
+:::
+
+# 格差の識別
+
+- 多くの実証研究で用いられている支配的な枠組みを、（川田は）知らない
+
+    - 因果推論とは、質的に異なる難しさ(規範命題)がある
+    
+    - 格差は因果的定義に馴染みにくいという立場[@rose2023constructivist;  @jackson2018decomposition] に従う
+
+## 規範命題
+
+- 格差 (差別、不平等) $:=$ 本来的に許容す**べき**ではない差
+
+    - 「である」 (事実命題) ではなく、「べき」 (規範命題)
+
+- 因果効果か否かは、事実命題であり、例えば理想的な実験を用いて区別可能
+
+- 客観的事実から、規範を導くことには、慎重であるべき(できない?)
+
+    - [ヒュームの法則](https://ja.wikipedia.org/wiki/%E3%83%92%E3%83%A5%E3%83%BC%E3%83%A0%E3%81%AE%E6%B3%95%E5%89%87)
+
+## $Y,D =$ 格差を定義
+
+- $Y,D=$ 研究関心となる格差/差別/不平等を定義する変数 
+
+- $Y=$ 大学進学、 $D=$ 出身地
+
+    - 地域間教育格差
+
+- $Y=$ [おいりの消費](https://ja.wikipedia.org/wiki/%E3%81%8A%E3%81%84%E3%82%8A)、 $D=$ 出身地
+
+    - 地域間格差?/文化的多様性?
+
+## $X =$ 格差を定義
+
+- $X=$ 研究関心となる格差/差別/不平等を定義する変数 
+
+## 例: 取り締まり [@rose2023constructivist]
+
+- 研究課題に応じて、格差の識別は異なる
+
+- 例: スピード違反の取り締まりにRaceは影響しているのか? 
+
+    - $X=$ 超過速度:  同じ速度で捕まった人について、量刑が同じであれば、"現場"において差別はない
+        
+- 例: Race間で格差はあるのか?
+
+    - 「犯罪を犯さざるを得ない状況」の偏りも格差に含めるのであれば、超過速度はコントロールすべきではない
+
+## まとめ
+
+:::{.callout-warning icon="false"}
+## 格差研究における$X$ の選択
+
+- 価値判断へのコミット
+
+    - 母集団が直接観察可能 (無限大の事例数をもつデータがある) 場合に、社会的に望ましくない差はどのように定義するか
+
+    - ある$X$内で差がなければ、研究課題となっている格差/差別/不平等はないと**定義する**
+:::
+
+## まとめ
+
+- 格差の定義: 議論の余地は大きい
+
+    - 議論のためにも、定義を明示する必要がある
+
+- 対話のための実践的な枠組みは存在するのか?
+
+    - 規範理論 (厚生経済学、政治/法哲学)の応用?
+
+## 注意: 適切な変数選択
+
+- Double selection: **推定** に用いる $Z (\subset X)$ を、統計的基準で選ぶ
+
+- Research questionの変更： $X$ が推定できない(観察できないも含む)ので、研究課題を変更する
+
+    - 格差の定義に必要な$X$ も変化する
+
+## 注意: 不適切な変数選択
+
+- **識別**に用いる $X$ を、**統計的基準**で選ぶことは困難
+
+- 例: Research question $=$ 警察官の差別
+
+- 「Double selectionを用いて$X$ を選べる」のであれば、以下を受け入れる必要がある
+    
+    - 事例数が少ないので、$X$ から超過速度を除外する
+    
+        - 規範的判断を「マイノリティに対して、”下駄"をはかさない警察官は差別している」に変更する???
+
+# 因果効果の識別
+
+- 課題: $E[Y|d,X]-E[Y|d',X]$ は因果効果と**解釈**できるのか?
+
+
+
+    - $D$ の実際の決まり方と理想の実験との乖離、に依存する
+
+## 動機
+
+- STEM - 非STEMでの平均収入差は容易に推定できるが、、、
+
+    - 両親の教育経験や生まれ年など背景属性にも違いがある
+
+    - 平均賃金差 = 学歴の効果 $+$ 背景属性の違い
+    
+- 学歴によらず”稼げる人"はそもそも大学に行かない
+
+    - 背景属性の違い $<0$
+
+- そもそも数理的思考が得意な人がSTEMに行く
+
+    - 背景属性の違い $>0$
+
+## 課題
+
+- $X$ の選択 および データ選択をどうするか？
+
+    - 観察できる変数の中から、どの$X$ の選択すべきか
+    
+    - どのような変数をデータから観察したいのか
+
+- 解決: 「因果("真の値")」を定義する
+
+    - **新たな概念的枠組み**を導入
+    
+    - 母集団と同じ戦法
+
+## 因果についての枠組み
+
+- 複数の有力なアプローチ (潜在結果や構造的因果モデル (DAGで表現される)) がある
+
+    - [Chap 2, 4-7 in CausalML](https://causalml-book.org/)
+
+        - 他にも "経済理論?" [@heckman2024econometric] 、頑健性 [@peters2016causal] などもある
+
+    - [不毛(?)な"学派"論争も散見される](https://muse.jhu.edu/issue/48885)が、(反実仮想分析など)共通点が多い [@goldberg2019book]。
+
+## 実験アプローチ
+
+- 理想的な（思考）実験 (Target Trial) を実施するか/**結果を近づける**
+
+    - 本講義で採用
+
+    - 他の枠組みの参照点としても機能
+
+## 理想的な実験: Controlled Experiment
+
+- 背景属性が全く同じ被験者を2名以上用意して、一部にのみ介入 $D=1$ を行う
+
+    - 例: 食塩を入れると、水の沸騰温度は上がるのか？
+
+- 労働経済学においては実現不可能
+
+    - "全く同じ"人間とは?
+    
+    - 例: 一卵性双子
+
+## 代替案: Randomized Controlled Trial
+
+- 無限の被験者が存在し、被験者間相互作用がない環境において、 各被験者の $D$ をランダムに決める
+
+    - データから観察可能/不可能な背景属性と"無関係"に$D$は決定
+    
+    - $Y$ の分布に差があれば、 $D$ の違いによってもたらされたと解釈する"しかない"状況に持ち込める
+    
+- 労働経済学の研究関心と親和的
+    
+## 実行可能な実験
+
+- 有限の被験者に対して、$D$ をランダムに割り振る
+
+    - 背景属性は"偶然"偏るが、その偏りは信頼区間で評価できる
+
+## Example: Resume Experiment
+
+- 履歴書の名前は、採用確率に影響を与えるのか?
+
+    - Raceが"伝わる"ことの因果効果を推定
+    
+        - 労働市場における差別の影響へ含意
+
+## Example. Resume Experiment
+
+- @bertrand2004emily
+
+- 求人に”偽の”履歴書を送り、返信があるかどうかを測定
+
+    - $D=$ 履歴書の内容: 特にCaucasian/African-American 系の名前かどうか
+    
+    - $Y=$ Callbackがあるかどうか
+    
+    - $X=$ 企業の属性、他の履歴書属性
+
+- AER packageにデータが収録
+
+## Example
+
+```{r}
+library(tidyverse)
+
+data("ResumeNames", package = "AER")
+
+Data = ResumeNames |> 
+  mutate(
+    D = case_when(
+        ethnicity == "afam" ~ 1,
+        ethnicity == "cauc" ~ 0
+    ),
+    Y = case_when(
+        call == "yes" ~ 1,
+        call == "no" ~ 0
+    ))
+```
+
+```{r}
+#| echo: true
+lm(Y ~ D, 
+   Data) |> 
+   marginaleffects::avg_comparisons(
+    vcov = "HC3", # Robust standard error
+    variables = "D")
+```
+
+## 自然実験
+
+- Target Trialを実際に実施することは、労働経済学においては難しい
+
+    - 社会の中で"勝手に起きた"実験的状況(自然実験)を活用する方法が発展
+    
+        - Target Trialとの間にギャップがあるので、補正を試みる
+
+- 社会の中で"勝手に起きた"実験的状況
+
+    - Estimand $=$ 理想の実験
+
+
+## $X$ の選択への含意
+
+- Target Trialをどうすれば、模倣できるのか?
+
+    - Target Trialにおいて、$D$間で差異が生じない変数は $X$ に含める
+    
+    - 差異が生じる変数は含めない
+    
+        - 含めるとTarget Trialの模倣ができなくなる
+        
+            - Bad Controll
+
+## 例: STEMの効果
+
+- $D=$ STEM系学部出身かどうか/ $Y=$ 30歳時点での所得/ $X=$ 出身地
+
+- Bad Control $=$ STEM系大学院に進学したかどうか
+
+    - STEM系学部への進学がRandomに決まっていたとしても、因果効果が推定できなくなる (後述)
+
+## 例: @fukai2023updated
+
+- 研究課題: 「"科学的処置"の負の結果」が科学への信頼に与える影響
+
+    - $D=$ コロナ腕の発生/非発生、 $Y=$ ワクチン/自然科学/承認プロセスへの信頼
+
+- 識別の仮定: $X=\{$ 性別、年齢、病歴、ワクチンの種類 $+\alpha \}$ が同じ回答者内では、コロナ腕はランダムに発生
+
+## 警句
+
+:::{.callout-warning icon="false"}
+## 介入なくして因果なし
+
+- 「理想的な実験を"想像できない"のであれば、因果効果は定義できない」
+
+    - 議論が続いている主張
+:::
+
+- (思考)実験における介入が $D$ を明確に定義する
+
+    - 例: STEM進学とは? $D=1\iff (大阪大学理学部、関大工学部..へ進学)$
+  
+    - 例: Social category ("性別"、"Race") とは?
+
+## まとめ
+
+
+:::{.callout-warning icon="false"}
+## 格差研究における$X$ の選択
+
+- 規範的判断へのコミット
+:::
+
+:::{.callout-warning icon="false"}
+## 因果推論における$X$ の選択
+
+- 理想的な実験結果へのコミット
+:::
+
+- Double selectionを$X$について使用すると、コミットが事例数に応じて変化することを受け入れる必要がある
+
+    - 非推奨
+
+# 推定への含意
+
+- RCTは、推定方法についても大きな恩恵をもたらす
+
+    - $D$ は $X$と統計的に独立している
+    
+        - $\Pr[D=d|X]=\Pr[D=d]$ が保証される
+
+    - 推定モデルの定式化への依存度が低い [@aronow2021nonparametric]
+
+## RCTデータへのコントロール
+
+- RCTデータに対して、$X$ をコントロールすべきか?
+
+    - コントロールすることが望ましい (推定誤差を減らし、信頼区間を狭くすることができる)
+
+- @lin2013agnostic : $D$ との交差項も入れれば、定式化が誤っていたとしても、漸近的に推定結果が悪化することはない
+
+    - 小規模サンプルでないのであれば、以下を推定すべき $$Y\sim D + X + D\times X$$
+
+- 有限標本における補正 [@@chang2024exact]
+
+## 例: ResumeName
+
+```{r}
+library(tidyverse)
+data("ResumeNames",
+     package = "AER")
+
+Y = case_when(
+  ResumeNames$call == "yes" ~ 1,
+  ResumeNames$call == "no" ~ 0
+)
+
+D = case_when(
+  ResumeNames$ethnicity == "afam" ~ 1,
+  ResumeNames$ethnicity == "cauc" ~ 0
+)
+
+X = ResumeNames |> 
+  select(
+    -name,
+    -call,
+    -ethnicity
+  )
+
+Data = X |> 
+  mutate(
+    D,
+    Y
+  )
+```
+
+```{r}
+#| echo: true
+lm(
+  Y ~ D*(.), # Y,D以外との交差項を導入
+  Data # Y,D,Xのみを格納
+  ) |> 
+  marginaleffects::avg_comparisons(
+    variables = "D",
+    vcov = "HC3"
+  )
+```
+
+## 定式化依存への誤解
+
+- しばしば、SimpleなLinear modelで十分だと考えられてきた。
+
+- 理想的な自然実験であれば十分
+
+- 多くの応用では、$D$ と $X$ は相関しているので、定式化依存の問題を校了する必要がある
+
+    - 一つの手段はDouble Selection
+
+## Reference
+

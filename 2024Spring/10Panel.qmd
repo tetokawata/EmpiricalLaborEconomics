@@ -1,0 +1,475 @@
+---
+title: "パネルデータ"
+author:
+  - name: 川田恵介
+format:
+  revealjs:
+    incremental: true 
+    slide-number: true
+    html-math-method: katex
+  pdf:
+    pdf-engine: lualatex
+    documentclass: ltjsarticle 
+    toc: true
+    toc-depth: 3
+    number-sections: true
+bibliography: "ref.bib"
+execute: 
+  echo: false
+  warning: false
+  message: false
+---
+
+# Panel Dataの活用
+
+```{r}
+library(tidyverse)
+
+SimData <- function(NumPeriod, Cutoff, NumID) {
+  Temp = map_dfr(
+    1:NumID,
+    function(x){
+      temp = tibble(ID = rep(x,NumPeriod),
+                    Period = seq(1,NumPeriod),
+                    TreatGroup = sample(
+                      0:1,
+                      1) |> rep(NumPeriod))
+      return(temp)
+    }
+    ) |> 
+    mutate(
+      Y = case_when(
+        TreatGroup == 1 & Period == Cutoff ~ 1,
+        TreatGroup == 1 & Period > Cutoff ~ 5,
+        .default = 0
+      ) + rnorm(NumPeriod*NumID,0,10),
+      D = case_when(
+        TreatGroup == 1 & Period >= Cutoff ~ 1,
+        .default = 0
+      )
+    )
+  return(Temp)
+}
+
+DataShort = SimData(2,2,500)
+
+DataLong = SimData(4,3,500)
+
+write_csv(DataLong,"Panel.csv")
+```
+
+- 同一事例を追跡調査したデータ: 事例$i$ について、複数時点 $t$ の$\{Y_{it},D_{it},X_{it}\}$ が観察可能
+
+    - 動学効果の推定や新しい識別方法などが活用可能に!!!
+
+- 3~4年で**要約/推定方法**が、急速進歩 [@roth2023s; @baker2022much; @de2022two]
+
+    - 実証結果に深刻な影響 [@baker2022much]
+
+## 例
+
+```{r}
+SimData(3,3,3)
+```
+
+## Estimand: 動学因果効果
+
+- 多くの介入は、将来に渡って影響を与える
+
+- 介入が発生した場合、しなかった場合の差
+
+    - いつ介入したか $(j)$ $+$ 介入からどのくらい経ったか $(l)$ に応じて、大量に定義できる
+
+- 例: 2024年における労働時間についての因果効果
+
+    - 2023年に結婚 VS 未婚のまま $(j=2023/l=1)$
+    
+    - 2018年に結婚 VS 未婚のまま $(j=2018/l=1)$
+
+    - 2018年に結婚後5年 VS 未婚のまま $(j=2018/l=5)$
+
+## panel view
+
+```{r, dev='ragg_png'}
+panelView::panelview(
+  Y ~ D,
+  data = SimData(5,3,1000),
+  index = c("ID","Period")
+)
+```
+
+## 例
+
+```{r, dev='ragg_png'}
+TempFigure <- function(i) {
+  set.seed(i)
+  PreTrend <- runif(4,35,45)
+  Effect <- runif(1,-10,-5)
+  Fig <- tibble(
+    Period = seq(1:4),
+    WorkingHour = PreTrend,
+    Event = "未婚"
+  ) |>
+    bind_rows(
+      tibble(
+        Period = seq(1:4),
+        WorkingHour = PreTrend + c(-1,Effect,2*Effect,3*Effect),
+        Event = "1期目に結婚"
+      )
+    ) |>
+    bind_rows(
+      tibble(
+        Period = seq(1:4),
+        WorkingHour = PreTrend + c(0,-1,Effect,2*Effect),
+        Event = "2期目に結婚"
+      )
+    ) |>
+    bind_rows(
+      tibble(
+        Period = seq(1:4),
+        WorkingHour = PreTrend + c(0,0,-1,Effect),
+        Event = "3期目に結婚"
+      )
+    ) |>  
+    ggplot(
+      aes(
+        x = Period,
+        y = WorkingHour,
+        color = Event,
+        group = Event
+      )
+    ) +
+    theme_bw() +
+    geom_line() +
+    geom_point()+
+    ylim(0,50)
+  return(Fig)
+}
+
+legend <- cowplot::get_legend(
+  TempFigure(2)
+  )
+
+cowplot::plot_grid(
+  TempFigure(2)+
+  theme(legend.position = "none"),
+  TempFigure(3)+
+  theme(legend.position = "none"),
+  TempFigure(4)+
+  theme(legend.position = "none"),
+  legend,
+  labels = c(str_c(1:3,"さん"),"")
+  )
+
+```
+
+# 因果効果の要約
+
+- １期間の平均因果効果と比べて、因果効果の要約方法がより大量に存在する
+
+    - どのような要約方法を採用するか、明確に定める必要がある
+
+## 平均動学効果
+
+- 介入から$l$期後の平均効果を集計
+
+- $$E[個別効果|l]$$
+
+## コホート別平均動学効果
+
+- 介入した時点$j$ごとに、介入発生から$l$期後の平均効果を集計
+
+- $$E[個別効果|l,j]$$
+
+    - 例: 結婚の効果は、時代によって異なる
+
+- 平均動学効果の推定においても、重要な役割を果たす
+
+# 識別 
+
+- Positivity $+$ No interference $+$ 緩和したSelection-on-observable
+
+    - No anticipation $\&$ Parallel trends
+
+## No anticipation
+
+- 将来の介入は、過去に影響を与えない
+
+    - 例: 2024年に未婚から既婚に変化しても、2022年の労働時間は変化しない
+
+## Parallel trends
+
+- 介入が生じなけければ、「介入が生じなかったグループ」と平均的に同じ変化をする。
+
+## 例
+
+```{r, dev='ragg_png'}
+tibble(
+  Period = seq(1,4),
+  TreatY = c(40,42,36,30),
+  ControlY = c(35,37,33,35),
+  CounterY = c(40,42,38,40)
+  ) |> 
+  ggplot(
+    aes(
+      x = Period,
+      y = TreatY,
+      color = "3期目に結婚",
+      linetype = "現実"
+    )
+  ) +
+  theme_bw() +
+  geom_line() +
+  geom_line(
+    aes(
+      y = ControlY,
+      color = "未婚",
+      linetype = "現実"
+    )
+  ) +
+  geom_line(
+    aes(
+      y = CounterY,
+      color = "3期目に結婚",
+      linetype = "仮想"
+    )
+    ) +
+  geom_vline(
+    xintercept = 3
+  ) +
+  ylab("労働時間")
+
+```
+
+## Parallel trendsの利点
+
+- RCT/自然実験で可能
+    
+    - それ以外では?
+    
+- 実践的な利点は、介入発生前に複数期間あれば、部分的なテスト (Before-Before/PreTrend test)が可能
+
+    - Eventの発生状況に関わらず、$Y$ は同じように推移している
+
+    - @roth2022pretest
+
+## 補論: コントロール変数の導入
+
+- 条件付き Parallel trends: 同じ $X$ 内で Parallel trendsが成り立っている
+
+    - 固定効果モデルでは、時間を通じて変化する変数しかできない
+
+    - 推定方法を工夫する必要がある @sec-ConditionalPalarrel
+
+# 推定: $2\times 2$ Case
+
+- **2** 期間 $\times$ **2** グループデータ
+
+    - Control Group: 介入が生じない
+    
+    - Treatment Group: 2期目に介入発生
+
+- **確立**された推定方法が存在
+
+## Two Ways Fixed Effect Model
+
+- ($\simeq$ 固定効果モデル)を推定: $$Y_{i,t}=\tau D_{i,t}+\underbrace{f_i}_{個人固定効果}+\underbrace{f_t}_{時点固定効果}+u_{i,t}$$
+
+    - OLSと同様の方法 (データへの適合度を最大化する)で推定可能
+    
+    - 追加の仮定を導入することで、推定精度を高める方法(変量効果モデル)もある
+    
+- 識別の仮定のもとで、 Average Treatment Effect on Treatedについて"信頼できる"信頼区間形成が可能
+
+## R Example
+
+```{r}
+#| echo: true
+fixest::feols(
+  Y ~ D + factor(Period),
+  DataShort,
+  panel.id = "ID"
+)
+```
+
+
+# 推定: $2\times$ Many case
+
+- 以上の議論は、多期間に拡張できる
+
+    - ずっと$D=0$ のグループ VS 途中で$D=1$ に切り替わったグループ
+    
+    - Event studyと呼ばれる推定方法が活用可能
+    
+    
+## Event study
+
+- 4期間パネルで、Treatment Groupに対して、3期目に介入が入るのであれば、
+
+$$E[Y|Z_{it}]=\beta_{1}Z_{1} + \underbrace{\beta_{2}}_{=0と基準化}Z_2 + \beta_3Z_3 + \beta_4Z_4 + f_{i} + f_{t}$$
+
+- $Z_t=1$ Treatment Group かつ $t$ 期目であれば1 、それ以外であれば0
+
+    - Control Group であれば、常に0
+
+## Event study
+
+- 識別の家庭のもとで、以下の式を推定すれば、動学効果、およびPallael trendsのチェックができる 
+
+$$E[Y|Z_{it}]=\underbrace{\beta_{1}}_{PallarelTrendのもとで=0}Z_{1} + \beta_3Z_3 + \beta_4Z_4 + f_{i} + f_{t}$$
+
+## 別表現
+
+- 後の議論のために、別の表現も理解する必要がある
+
+- $E_i$ : 個人 $i$ に対して介入が行われる時期
+
+    - Control groupについては、 $E_i=\infty$
+    
+    - Treatment groupについては、$E_i=\bar{E}$
+
+## 別表現
+
+- $\beta_{-1}=0$ と基準化: $$E[Y_{it}|E_{i}=e]=\sum_{l=l_{-}}^{l_{+}}\beta_{l}\mathbb{I}[t-e=l] + f_{i} + f_{t}$$
+
+- $\mathbb{I}[t-e=l]= t-e$ が $l$ であれば1、それ以外は0 
+
+- $l_{-},l_{+} =$ 研究者が定めるTriming
+
+## R Example
+
+```{r}
+#| echo: true
+#| 
+DataLong = mutate(
+  DataLong,
+  Z = case_when(
+    TreatGroup == 1 ~ 3,
+    .default = 100000
+  )
+  )
+
+library(fixest)
+
+Model = feols(
+  Y ~ sunab(Z, Period)| Period + ID,
+  DataLong,
+  panel.id = "ID"
+)
+```
+
+## R Example
+
+```{r}
+iplot(Model)
+```
+
+# 推定: Staggerd case
+
+- 2-group以外での推定方法は、**まだよく分かっていない**
+
+    - 推定モデルの正しさに、結果が強く依存
+
+- 例外は、 介入が徐々に行われるケース (Staggered design)
+
+    - 直近で集中的に研究が進む
+
+## 応用例. Marriage premium/penalty
+
+- 結婚"経験"が労働供給に与える影響を推定したい
+
+- パネルデータの期間中に、徐々に結婚していく
+
+    - 離婚したとしても、結婚経験がある $D=1$ と定義する
+    
+    - Control groupは一度も結婚したことがないグループ
+
+## 問題点
+
+- $2\times 2$ であれば、**識別の仮定の下で**、Treatment Group内平均効果の信頼区間を提供
+
+- $2\times 2$以外は?
+
+    - 推定のための単純化が、不適切な比較を生み出す可能性
+    
+    - 個別因果効果が全て正でも、負の平均効果が推定されてしまう
+
+## Simple Example
+
+- 2期間モデル: 結婚が就業状態に与える因果効果を推定するために、以下を比較
+
+    - Treatment Group: 2期目に結婚
+    
+    - Control Group**s**: ずっと未婚 $\&$ **ずっと既婚**
+
+- Two Ways Fixed Effect Modelを推定すると、何某かの値は表示されるが、基本的に不適切
+
+## Simple Example
+
+- 本当の因果効果
+
+    - 結婚した期には、因果効果がほとんどない
+
+    - 2期目以降に労働時間を低下させる
+
+## 例
+
+```{r, dev='ragg_png'}
+tibble(
+  Period = seq(0,2,1),
+  TreatY = c(41,41,41),
+  ControlY = c(40,40,30),
+  TrueControlY = c(42,42,42),
+  EstY = c(41,41,37)
+  ) |> 
+  ggplot(
+    aes(
+      x = Period,
+      y = TreatY,
+      color = "2期目に結婚",
+      linetype = "現実"
+    )
+  ) +
+  theme_bw() +
+  geom_line() +
+  geom_line(
+    aes(
+      y = ControlY,
+      color = "1期目に結婚",
+      linetype = "現実"
+    )
+  ) +
+  geom_line(
+    aes(
+      y = TrueControlY,
+      color = "ずっと未婚",
+      linetype = "現実"
+    )
+    ) +
+  geom_line(
+    aes(
+      y = EstY,
+      color = "2期目に結婚",
+      linetype = "推定された未婚の場合\nの労働時間"
+    )
+    ) +
+  ylab("労働時間") +
+  ylim(25,45)
+```
+
+- 2期目に結婚したグループの因果効果を推定する際に、ずっと未婚と**1期目に結婚**グループを全てControl groupとして使用してしまう
+
+## 問題点
+
+- 識別の仮定**ではなく**、 推定のために導入された仮定 (Two way fixed effect model)が問題
+
+- $D$ が変化していない(介入が生じていない $\&$ **生じた後**)期間を全てControl groupとして使ってしまう
+
+- Two by Two caseでは、 最初から介入が生じているの事例を削除すれば良い
+
+- 多期間の場合については、一般的な方法はよくわかっていない
+
+    - 例外ケース: Staggered design
+
+
+# Reference

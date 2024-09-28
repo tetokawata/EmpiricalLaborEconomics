@@ -1,0 +1,374 @@
+---
+title: "Selection on Observable / Balancing Weight"
+subtitle: "労働経済学"
+author: "川田恵介"
+format:
+  revealjs:
+    incremental: true 
+    slide-number: true
+    html-math-method: katex
+  pdf:
+    pdf-engine: lualatex
+    documentclass: ltjsarticle 
+    toc: true
+    toc-depth: 3
+    number-sections: true
+bibliography: "ref.bib"
+execute: 
+  echo: false
+  warning: false
+  message: false
+  eval: true
+---
+
+# Selection on observable
+
+```{r}
+library(tidyverse)
+```
+
+- 統計的因果推論の基本的発想の一つは、 Chance (偶然) を利用した因果効果の推論 [@imbens2022causality]
+
+- 母集団全体で（自然）実験が発生している応用はまれ
+
+    - "局所的"に発生した実験的状況を活用できる
+    
+## 局所的な実験
+
+- 多くの手法が発展
+
+    - 操作変数、Regression Discontinuity
+        
+- 出発点となる方法は、Selection-on-observeを仮定し、因果効果を**識別**し、慎重な統計的に処理 (OLS with Balancing weight) を行い推定する
+
+# 識別
+
+- 以下が十分条件
+
+- $X$ が同じであれば、 $D$ はランダムに決まっている (Conditional independence)
+    
+- すべての$x,d$ について、 $0 < \Pr[d|X=x] < 1$ (Positivity)
+
+- 他者の$d$に影響を受けない (No interference)
+
+## Conditional comparison
+
+- $0 < \Pr[d|X=x] < 1$ であれば、$X$が同じ事例内で比較できる
+
+- $X$ 内で $D$ がランダムに決まり、他者の介入に影響を受けないのであれば、$X$ 内でRCTが実行されたと見做せる
+
+- $X$ 内での平均値の差 $=$ Conditional average treatment effect
+
+## 違反
+
+- 例: $D=$ 「労働経済学」の講義への参加 $\rightarrow Y=$ 30歳時点での所得
+
+- 受講できない研究科が存在: Positivity違反
+
+- 勉強会などで非受講者にも講義内容を共有: No interference違反
+
+- そもそもの興味関心など、データから観察しにくい要因に、受講するかどうかが依存: Conditional independence違反
+
+# 識別: Conditional independence
+
+- Conditional independenceについて、大量の議論が存在
+
+## Confounders
+
+- Conditional independence について、より踏み込んだ議論のために、概念 Confounders (交絡因子)を導入
+
+- 例: 経済学研究科の院生の方が参加しやすい
+
+    - 経済学研究科と他研究科の間で30歳時点での所得にも差異がある
+    
+        - $X$ としてBalanceさせるべき (03OLS4Balance参照)
+
+## イメージ
+
+```{dot}
+digraph {
+    rankdir=LR;
+    node [shape = box];
+    X [label = "X: Confounders"];
+    D [label = "D: Treatment"];
+    Y [label = "Y: Outcome"];
+    X -> D,Y
+    D -> Y [label = "Causal Effect"]
+}
+```
+
+## イメージ: RCT
+
+```{dot}
+digraph {
+    rankdir=LR;
+    node [shape = box];
+    X [label = "X: Confounders"];
+    D [label = "D: Treatment"];
+    Y [label = "Y: Outcome"];
+    R [label = "Researchers/Nature"]
+    X -> Y
+    X -> D [style = dashed]
+    R -> D
+    D -> Y [label = "Causal Effect" color = "red"]
+    {rank = same; D,X}
+}
+```
+
+## 問題点: Unobservable confounders
+
+- すべてのConfoundersをデータから観察できるとは限らない
+
+    - 観察できない(Unobservable) confoundersが存在
+    
+        - $X$ 内の比較は、因果効果と一致しない
+
+- Conditional independenceは、 Unobservable confoundersが存在しないことを仮定
+
+    - しばしば強すぎる仮定であり、代替案が提案されている
+
+## 問題点: Bad Control
+
+- データの中には、バランスすべきではない変数も通常含まれている
+
+    - 理想的なRCTにおいても、$D$ 間で差異が生まれる変数 (Post-treatment $M$)
+
+- 例: $M=$ 修士論文の内容
+
+## イメージ
+
+```{dot}
+digraph {
+    rankdir=LR;
+    node [shape = box];
+    X [label = "X: Confounders"];
+    D [label = "D: Treatment"];
+    Y [label = "Y: Outcome"];
+    M [label = "Post treatments"]
+    X -> D,Y
+    D -> Y [label = "Causal Effect", color = "red"]
+    D -> M -> Y [color = "red"]
+    {rank = same; D,X,M}
+}
+```
+
+## 問題点: Bad Control
+
+- もし$X$ 内で$D$ がランダム化しており、Unobservable confoundersが存在しなかったとしても、 post-treatmentを加えることで、confoundersが"復活"してしまう
+
+- 例: $M=$ 修士論文の内容
+
+- $D=$ 受講 $\& M=$ 実証研究 VS $D=$ 未受講 $\& M=$ 実証研究
+
+    - 後者の方が、そもそも実証研究に関心がある人の割合が多い?
+
+# 推定問題: Conditional comparison
+
+- 因果効果が識別できたとして、限られた事例数から、どのように推定するか?
+
+    - Confoundersのバランスを達成する必要がある
+
+- Slide03/04の方法も使用可能だが、因果効果の異質性を考慮した場合、修正が必要
+
+## Subsample Average Difference
+
+- Conditional average treatment effectが識別できたとしても、推定は容易ではない
+
+- 最もシンプルな推定方法は、サブサンプルの平均差 $$\frac{\sum_{i|D_i=d,X_i=x}Y_i}{N(d,x)} - \frac{\sum_{i|D_i=d',X_i=x}Y_i}{N(d',x)}$$
+
+- $N(d,x) =$ $D_i=d,X_i=x$ を満たす事例数
+
+## Subsample size問題
+
+- $X$ の数が多いと、サブサンプルサイズが小さくなり、推定精度が悪化する
+
+- 条件付き平均効果の"集計値"を推定する必要がある
+
+    - どのように集計するか、という問題が発生する
+    
+# 集計問題: Conditional average treatment effect
+
+- 今日の労働経済学研究において、大きな注意が払われる
+
+## 条件付き平均値としての集計
+
+- 各$X$ 内でRCTが行われた際に識別できる因果効果 $\tau(X)$
+
+    - 条件付き平均効果 (Conditional Average Treatment Effect; CATE)
+
+    - ここまでは一定を仮定
+
+- 解決策: CATEの平均値をEsitmandとする
+
+## Average treatment effect
+
+- Estimand (平均効果)は以下のように定義できる $$\tau=\sum_{X=x}\omega(x)\times \tau(x)$$
+
+- Estimandは $Y,D,X$ だけでなく、Weight $\omega(x)$ にも依存する
+
+    - 研究者が指定する必要がある
+
+- Average Treatment Effect: $\omega(X)=f(x)$
+
+    - $f(x)=$ $X_i=x$ の割合
+
+## 例:
+
+```{r}
+tibble(
+  x = c(1,2,3),
+  `Tau(x)` = c(10,5,6),
+  `f(x)` = c(0.1,0.1,0.8)
+)
+```
+
+- Average Treatment Effect $= 10*0.1 + 5*0.1 + 6*0.8 = 6.3$ 
+
+# 推定: OLS
+
+- $Y=\beta_0 + \beta_DD + \beta_1 X_1 +..+u$ を推定
+
+    - $X$ をバランスさせるWeight推定として解釈できる (Slide03)
+
+    - $X$ を十分に複雑にすることで、$X$のバランスを達成
+    
+    - Double selectionも併用可能
+
+- 隠れた問題点が存在
+
+## OLSの明確な問題点: Recap
+
+- $X$ の平均値のみ揃えるので、 $Y-X$ に非線形な関係性があれば、信頼区間が信頼できなくなる
+
+- 対策: モデルを複雑化させる (二乗項や交差項なども$X$に含める)
+
+## OLSの不明確な問題点
+
+- $X$ の$D$間でのバランスを達成するWeightの中で、最も分散が小さいものが選ばれる
+
+    - 修正済みデータについても、一般に、$E[X|D=1]=E[X|D=0]\neq E[X]$ 
+
+    - "存在しない"集団について、平均差を推定してしまう
+    
+    - Average Treatment Effectが推定できない
+    
+- 因果効果/格差の異質性が大きい場合、平均効果/格差からズレた値が推計されやすくなる
+
+    - [lmw](https://github.com/ngreifer/lmw) packageを利用し計算できる
+
+
+## 例
+
+```{r}
+library(lmw)
+data("CPS1985", package = "AER")
+
+WeightOLS = lmw(~ married + age + education + ethnicity + gender, CPS1985)
+
+WeightOLS$weights |> hist()
+```
+
+## 例: 記述統計 with OLS weight
+
+```{r}
+NoAdjust = CPS1985 |> 
+  select(age,
+         education,
+         ethnicity,
+         gender) |> 
+  mutate(
+    Weight = WeightOLS$weights
+  ) |> 
+  gtsummary::tbl_summary()
+
+CPS1985 |> 
+  select(age,
+         education,
+         ethnicity,
+         gender) |> 
+  mutate(
+    Weight = WeightOLS$weights
+  ) |> 
+  survey::svydesign(
+    ~1, 
+    data = _, 
+    weights = ~Weight) |> 
+  gtsummary::tbl_svysummary(
+    include = c(age, education, ethnicity, gender),
+    statistic = list(
+      gtsummary::all_continuous() ~ "{mean} ({p25},{p75})"
+    )
+  )
+```
+
+## 例: 記述統計
+
+```{r}
+CPS1985 |> 
+  select(age,
+         education,
+         ethnicity,
+         gender) |> 
+  survey::svydesign(
+    ~1, 
+    data = _) |> 
+  gtsummary::tbl_svysummary(
+    include = c(age, education, ethnicity, gender),
+    statistic = list(
+      gtsummary::all_continuous() ~ "{mean} ({p25},{p75})"
+    )
+  )
+```
+
+
+## 解決策: マッチング法の併用
+
+- 事前に$X$の分布をデータ全体と揃える非負のWeightを計算して使用する
+
+    - CBPS [@imai2014covariate], optitmal weight [@zubizarreta2015stable] など
+    
+    - [WeightIt](https://ngreifer.github.io/WeightIt/articles/estimating-effects.html) パッケージで容易に実装可能
+
+- Entropy weight [@hainmueller2012entropy] を実装
+
+    - $X$ の平均値をデータ全体と一致させ、かつばらつきを極力減らしたWeightを計算
+
+## 実装: WeightIt
+
+```{r}
+#| echo: true
+library(WeightIt)
+WeightBalance = weightit(
+  married ~ education + age + ethnicity + gender, # G ~ X
+  CPS1985, # Use DataClean
+  method = "ebal", # Define EntropyWeight
+  estimand = "ATE")  # Define estimand
+```
+
+## 実装: OLSとの併用
+
+- 推定精度を上げるために、OLSとの併用が望ましい
+
+```{r}
+#| echo: true
+Fit = lm(
+  log(wage) ~ married*(age + ethnicity + gender),
+  CPS1985,
+  weights = WeightBalance$weights) # MRI + CBPS weight
+
+marginaleffects::avg_comparisons(
+  Fit,
+  variables = "married",
+  vcov = "HC3")
+```
+
+
+## まとめ
+
+- コントロール変数で因果効果を識別するのであれば、 $X$ 内でRCTが行われている必要がある
+
+- 因果効果の異質性を想定する場合、OLSによる推定は、平均効果を推定できない
+
+    - $X$ をサンプル平均とバランスさせる方法を併用する必要がある
+
+## Reference
