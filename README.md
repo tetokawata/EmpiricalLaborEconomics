@@ -2,23 +2,19 @@
 
 労働経済学についての、講義用レポジトリです。
 
+- 講義資料はPublicにアップロードします
+
 - 応用計量経済学/統計学/データサイエンスとしての労働経済学を講義します
 
-    - 主として、["Agnostic Statistics"](https://www.cambridge.org/core/books/foundations-of-agnostic-statistics/684756357E7E9B3DFF0A8157FB2DCECA) に基づくアプローチを紹介します。
+    - 主に比較研究(含む因果効果/格差)への活用を念頭におきます
+    
+        - 補助として教師付き学習などの予測研究への応用を目的に開発された手法を紹介します。
+
+    - 方法論の教科書としては、以下を推奨します。
+    
+        - [Applied Causal Inference Powered by ML and AI (Chernozhukov, Hansen, Kallus, Spindler, Syrgkanis)](https://causalml-book.org/)
     
     - 実習ではRを用います。
-
-- 後期は、格差分析やマクロ指標の活用方法について議論します。
-
-    - 前期のスライドは2024Springフォルダーに格納しています。
-
-    - 講義アーカイブは講義 [Dropbox](https://www.dropbox.com/scl/fo/8tmwgfogfl3hf93gjluus/AOdH_eHMe9YTKXEzzdRvZMI?rlkey=e1hs2pkyrxui79keqi3tn4370&dl=0)でシェア
-
-        - 注意
-    
-            - 動画サイトやSNS上へのアップロードは禁止です
-        
-            - ダウンロードした上で視聴ください(Dropbox上では、60分しか再生されません)
 
 - 以下のどちらかを実行
 
@@ -49,3 +45,13 @@
     - [R for Data Science](https://r4ds.had.co.nz/)
     
     - [私たちのR](https://www.jaysong.net/RBook/)
+
+- 昨年のスライドは2024Spring/Autumフォルダーに格納しています。
+
+    - 講義アーカイブは講義 [Dropbox](https://www.dropbox.com/scl/fo/8tmwgfogfl3hf93gjluus/AOdH_eHMe9YTKXEzzdRvZMI?rlkey=e1hs2pkyrxui79keqi3tn4370&dl=0)でシェア
+
+        - 注意
+    
+            - 動画サイトやSNS上へのアップロードは禁止です
+        
+            - ダウンロードした上で視聴ください(Dropbox上では、60分しか再生されません)
