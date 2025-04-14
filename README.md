@@ -24,7 +24,13 @@
 
 - [ローカル環境: Project forlderの作成とデータの格納](https://youtu.be/f2EU44WFyQM)
 
-無料入門書:
+復習用ノート:
+
+- [線形近似モデル](https://github.com/tetokawata/NoteBLP)
+
+- [バランス後の比較](https://github.com/tetokawata/NoteBalance)
+
+入門書:
 
 - Labor Economics by Maximilian Kasy
 
@@ -37,6 +43,10 @@
     - [Foundations of Agnostic Statistics](https://www.cambridge.org/core/books/foundations-of-agnostic-statistics/684756357E7E9B3DFF0A8157FB2DCECA)
 
     - [Applied Causal Inference Powered by ML and AI](https://causalml-book.org/)
+    
+    - [Causal Inference: A Statistical Learning Approach (Wager)](https://web.stanford.edu/~swager/causal_inf_book.pdf)
+        
+    - [A first course in causal inference (Peng Ding)](https://arxiv.org/abs/2305.18793)
 
 - R
 
