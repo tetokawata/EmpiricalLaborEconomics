@@ -1,0 +1,15 @@
+宿題1
+
+1. CPS1988を用いて、大都市に居住しているか否か(smash)間での賃金(wage)格差をOLSおよびEntropyBalancingで推定せよ。その際にeducationとをコントロールせよ。
+
+2. EntropyBalancingがOLSに対してもつ利点を説明せよ。
+
+3. EducationをControlしない場合と比べて、なぜ格差の推定値が異なるのか、説明せよ。
+
+4. 大都市に居住することの因果効果を推定する場合、CPS1988に含まれる他の変数も利用することが望ましい。この際に利用することが妥当ではない変数を、その理由とともに述べよ
+
+- 提出方法: script fileをkeisukekawata@iss.u-tokyo.ac.jp まで送付
+
+    - メールのタイトルは、Homework1_学生番号、とすること
+
+- 提出期限: 6月8日
