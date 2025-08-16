@@ -47,6 +47,8 @@
     - [Causal Inference: A Statistical Learning Approach (Wager)](https://web.stanford.edu/~swager/causal_inf_book.pdf)
         
     - [A first course in causal inference (Peng Ding)](https://arxiv.org/abs/2305.18793)
+    
+    - [Credible Answers to Hard Questions: Differences-in-Differences for Natural Experiments](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4487202)
 
 - R
 
