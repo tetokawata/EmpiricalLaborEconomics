@@ -1,0 +1,424 @@
+---
+title: "Maximum Likilihood for Approximation Model"
+subtitle: "労働経済学 1"
+author: "川田恵介"
+format:
+  typst:
+    fig-format: retina
+    bibliographystyle: apa
+    mainfont: "Hiragino Mincho ProN"
+    number-sections: true
+  revealjs:
+    incremental: true 
+    slide-number: true
+    bibliographystyle: apa
+    html-math-method: katex
+    chalkboard: true
+bibliography: "ref.bib"
+execute:
+  warning: false
+  message: false
+  echo: false
+---
+
+
+```{r, dev='ragg_png'}
+library(tidyverse)
+
+data(CPSSWEducation, package = "AER")
+```
+
+# 最尤法 (Maximum Likilihood)
+
+## 動機
+
+- OLSよりも"複雑なモデルを推定できる方法"として紹介されがち
+
+  - 有名な応用は、"Binary outcome ($Y$ が0または1) についてのモデル (Logit/Probit) を最尤法で推定"
+
+- 本質的な違いは、平均値ではなく、**分布の近似モデル**を推定する手法
+
+  - [Generative model](https://en.wikipedia.org/wiki/Generative_model) を推定する手法とみなすこともできる
+
+- 代替的な推定方法: ベイズ法/Generative Adversarial Network
+
+## Takeaway
+
+- 研究目標と推定対象に応じた、適切な使い分けが必要
+
+- OLSとの使い分けについて、大きな誤解がある
+
+  - "$Y$ がBinaryならば、OLSは使っては行けない"など
+  
+    - 有力な反論 [@angrist2009mostly]
+
+## Statistical model
+
+- 変数の分布を表すモデル ([wiki](https://en.wikipedia.org/wiki/Statistical_model))
+
+  - Parametric model: 有限個のパラメタからなるモデル
+  
+  - Non-parametric model: "無限個のパラメタ"からなるモデル
+
+- 教科書的な最尤法/ベイズは、Paramericな統計モデルを推定する方法
+
+## 例. Logit型労働供給モデル
+
+- 労働供給の意思決定 (誰が働いているか) は、労働経済学の古典的な関心
+
+- $Y=$ 就業 (=1) /非就業 (=0)
+
+  - $Y=1$である割合(密度関数)は、$f(Y=1\mid X)$
+
+- $$f(Y=1\mid X)\simeq \underbrace{g(X)}_{モデル}$$ $$=\frac{\exp(\beta_0 + \beta_1X_1+..+\beta_LX_L)}{1+\exp(\beta_0 + \beta_1X_1+..+\beta_LX_L)}$$
+
+## 例. 古典的線型モデル
+
+- ミンサー型賃金"分布"モデル
+
+- $Y=$ 賃金
+
+  - $Y$の密度関数は、$f(Y\mid X)$
+
+- $$f(Y\mid X) \simeq g(X)=\beta_0+\beta_1+..+\underbrace{u}_{Normal}$$
+
+  - $u\sim N(0,\beta_{\sigma})$
+
+- $X$ が同じであれば、賃金分布は必ず正規分布に従うことを仮定
+
+## 生成モデルとしての解釈
+
+- パラメトリックモデルを用いれば、"PC上で"データを生成できる
+
+  - 事例を生成するモデルとして解釈できる
+
+# データ上の計算
+
+## 最尤法のアイディア
+
+- 研究者が事前に設定した分布のモデルを、極力データに当てはまるように推定する
+
+  - [KL divergence](https://ja.wikipedia.org/wiki/%E3%82%AB%E3%83%AB%E3%83%90%E3%83%83%E3%82%AF%E3%83%BB%E3%83%A9%E3%82%A4%E3%83%96%E3%83%A9%E3%83%BC%E6%83%85%E5%A0%B1%E9%87%8F)を最小化する
+
+## 実例. 正規分布モデル
+
+- $$f(education) \simeq \beta_0 + \underbrace{u}_{Normal}$$ を推定
+
+  - $Y$ が正規分布 $N(\beta_0,\sigma^2)$ に従うモデルを推定
+  
+    - パラメタ (平均$\beta_0$ と分散 $\sigma^2$　) が決まれば、education のモデル上の分布を計算(生成)できる
+    
+- データ上の**分布** $\tilde{f}(education)$ に最も適合するように、パラメタを選ぶ
+
+## 実例. データ上の分布
+
+```{r}
+CPSSWEducation |>
+  mutate(
+    N = n(),
+    .by = education
+  ) |>
+  mutate(
+    `f` = (N / nrow(pick(everything()))) |>
+      round(3)
+  ) |>
+  distinct(
+    education,
+    N,
+    `f`
+  ) |>
+  arrange(education) |>
+  tinytable::tt()
+```
+
+
+## 実例. データ上の分布
+
+```{r}
+CPSSWEducation |>
+  ggplot(
+    aes(
+      x = education
+    )
+  ) +
+  geom_histogram(
+    aes(
+      y = after_stat(density)
+    )
+  ) +
+  theme_minimal() +
+  ylab(latex2exp::TeX("$\\tilde{f}(education)$"))
+```
+
+## 実例. さまざまなモデル
+
+```{r, dev='ragg_png'}
+DefNorm <- function(mu, sigma) {
+  -sum(dnorm(CPSSWEducation$education, mean = mu, sd = sigma, log = TRUE))
+}
+
+EstNorm <- stats4::mle(
+  minuslogl = DefNorm,
+  start = list(mu = 5, sigma = 3),
+  method = "L-BFGS-B",
+  lower = list(sigma = 0.0001)
+)
+
+CPSSWEducation |>
+  ggplot(
+    aes(
+      x = education
+    )
+  ) +
+  geom_histogram(
+    aes(
+      y = after_stat(density)
+    )
+  ) +
+  stat_function(
+    aes(
+      color = "平均 = 16, 分散 = 1"
+    ),
+    fun = dnorm,
+    n = nrow(CPSSWEducation),
+    args = list(mean = 16, sd = 1)
+  ) +
+  stat_function(
+    aes(
+      color = "平均 = 13, 分散 = 2.25"
+    ),
+    fun = dnorm,
+    n = nrow(CPSSWEducation),
+    args = list(mean = 13, sd = 1.5)
+  ) +
+  stat_function(
+    aes(
+      color = "最尤法"
+    ),
+    fun = dnorm,
+    n = nrow(CPSSWEducation),
+    args = list(mean = EstNorm@coef[1], sd = EstNorm@coef[2])
+  ) +
+  theme_minimal() +
+  ylab(latex2exp::TeX("$\\tilde{f}(education)$")) +
+  guides(color = guide_legend(title = latex2exp::TeX("$g(education)$")))
+```
+
+## KL divergence
+
+- KL divergenceを最小化するようにパラメタを推定する
+
+  - KL divergence $=$ データ上の分布 $\tilde f(Y)$ とモデルの分布 $g(Y)$ の乖離度 $=$ $$[\log (\tilde{f}(Y)) - \log (g(Y))]\times \tilde{f}(Y)$$ のすべての$Y$についての総和
+
+## 実例. データ上の分布
+
+```{r}
+Temp <- CPSSWEducation |>
+  mutate(
+    N = n(),
+    .by = education
+  ) |>
+  mutate(
+    Share = (N / nrow(pick(everything()))) |>
+      round(3)
+  ) |>
+  distinct(
+    education,
+    N,
+    Share
+  ) |>
+  mutate(Green = dnorm(education, mean = 13, sd = 3) |> round(3)) |>
+  mutate(KL_Green = (log(Share) - log(Green)) |> round(3)) |>
+  mutate(Red = dnorm(education, mean = EstNorm@coef[1], sd = EstNorm@coef[2]) |> round(3)) |>
+  mutate(KL_Red = (log(Share) - log(Red)) |> round(3)) |>
+  arrange(-education)
+
+Temp |>
+  tinytable::tt()
+```
+
+
+
+## 実例. データ上の分布
+
+- KL divergence
+
+  - Red model: `r sum(Temp$KL_Red*Temp$Share) |> round(3)`
+
+  - Green model: `r sum(Temp$KL_Green*Temp$Share) |> round(3)`
+
+## 最尤法の別解釈
+
+- KL divergenceの最小化 $=$ 以下の総和の最大化と同じ結果 $$\log (g(Y))\times \tilde{f}(Y)$$
+
+  - 対数尤度の最大化
+
+## 拡張
+
+- より複雑な分布のモデルも、同じ理屈で推定できる 
+
+  - 経済学の応用論文では、$Y$ の条件付き分布のモデルとして、書かれることが多い
+
+- 例: 古典的線型モデル $$g(Y\mid X)=\beta_0 + ..+\beta_LX_L +\underbrace{u}_{Normal(0,\sigma^2)}$$
+
+  - パラメタ: $\beta_0,..,\beta_L,\sigma^2$
+
+## 拡張
+
+- 以下のKL divergenceを最小化するように推定 $$\underbrace{[\log (\tilde{f}(Y\mid X)) - \log (g(Y\mid X))]\times \tilde{f}(Y\mid X)}_{Xについての乖離}\times\tilde{f}(X)の総和$$
+
+# 推定対象
+
+## 推定対象
+
+- OLSと同様に、母分布の**母集団上での**近似モデルを推定対象と解釈できる
+
+  - 研究者が設定するモデルが正しい場合、母分布そのものを推定していると解釈できる
+
+## 推定対象
+
+- あるモデル $g(Y)$ を母集団上で最尤法で推定すると、以下を最小化するモデルが計算される $$[\log (f(Y)) - \log (g(Y))]\times f(Y)$$ のすべての$Y$についての総和
+
+- 真の母分布と母集団上でのモデル $g(Y)$を最小化する
+
+  - 近似モデルが推定対象
+
+## 例
+
+```{r, dev='ragg_png'}
+Temp <- tibble(
+  X = seq(0, 1, 0.0001),
+  Share = 1
+)
+
+DefNorm <- function(mu, sigma) {
+  -sum(dnorm(Temp$X, mean = mu, sd = sigma, log = TRUE))
+}
+
+EstNorm <- stats4::mle(
+  minuslogl = DefNorm,
+  start = list(mu = 5, sigma = 3),
+  method = "L-BFGS-B",
+  lower = list(sigma = 0.0001)
+)
+
+
+Temp |>
+  ggplot(
+    aes(
+      x = X,
+      y = Share
+    )
+  ) +
+  geom_line(
+    aes(
+      color = "母分布"
+    )
+  ) +
+  stat_function(
+    aes(
+      color = "近似モデル"
+    ),
+    fun = dnorm,
+    n = nrow(CPSSWEducation),
+    args = list(mean = EstNorm@coef[1], sd = EstNorm@coef[2])
+  ) +
+  theme_bw() +
+  ylab(latex2exp::TeX("$f(education)$"))
+```
+
+## 推定対象
+
+- もしパラメタを適切に選べば、$f(Y) = g(Y)$ が達成できるのであれば、推定対象は母分布
+
+  - Misspecificationがない状況
+  
+  - 多くの入門書が想定
+
+## まとめ
+
+- 母分布の近似モデルを推定する手法として解釈できる
+
+  - 特殊ケース (Misspecificationがない)のみ、母分布を推定していると解釈できる
+
+- 後述: OLSと同様に、Misspecificationを前提とした信頼区間計算も可能
+
+  - 詳細は、@aronow2019foundations の5章、 @hansen2022probability の10.16-19章
+
+# 実践: 最尤法 VS OLS
+
+## どちらを用いるべきか?
+
+- 一般に研究課題と推定目標に応じて、決める必要がある
+
+  - 推定値の性質改善を目指して、最尤法を採用するケースもあるが、労働経済学ではあまり有効ではないケースが多い
+
+## 最尤法が比較優位
+
+- 分布のモデルを推定したいのであれば、OLSを用いることはできない
+
+  - 生成モデル、(経済理論などを用いた)構造モデル全体を推定したいなど
+
+- 平均値の非線形モデル ($\beta$ についての足し算ではない)も、OLSでの推定は困難
+
+## OLSが比較優位
+
+- $Y$ の平均値について、線型モデルを推定したいのであれば、OLSに比較優位
+
+  - $Y$がBinary (例: 就業状態)であったとしても、OLSは利用できる
+  
+    - 予測値が負になり得るが、そもそも近似モデルを推定していると解釈するのであれば、致命的な欠陥ではない [@angrist2009mostly]
+    
+  - $Y$ の分布の特定の性質に関心があったとしても、活用できる
+  
+    - 例: 月給が20万円以下の労働者の割合について、モデルを作りたい $Y=Wage>=20$ であれば1、それ以外であれば0
+
+## OLSが比較優位
+
+-「バランス後の比較」を行う手法としては、OLSに大きな優位性
+
+  - 後述
+
+## 推定の問題
+
+- **もしMisspecificationがない統計モデル** を前提にできるのであれば、最尤法の方が優れた**推定手法**
+
+  - 私見: 労働経済学の実践においては、Misspeficificationを前提とすべきであり、今日では最尤法を選択する積極的な理由にならない
+
+
+# 補論: Parametric VS Semiparameric
+
+
+## Semiparameric model ([wiki](https://en.wikipedia.org/wiki/Semiparametric_model))
+
+- 限られた数の推定対象 (Parameter of interst) と"その他の部分"からなる、統計モデルの定式化
+
+- 例: $$f(Wage)=\beta_0 + \underbrace{u}_{その他の部分}$$
+
+  - 推定対象は、母分布を用いて、明確に定義する $$\beta_0=E[Wage]$$
+
+## Semiparameric model
+
+- その他の部分 $u$ の分布は、有限個のパラメタによる定式化は行わない
+
+  - Parameter of interestの**定義から** 、必然的に満たすべき性質を導出できる $$Wage=Y - E[Wage]$$
+  
+  - 推定のために必要な仮定もある
+
+- 一般にParametric modelに比べて、Misspeficaitionを犯す可能性が低い
+
+## Semiparameric modelの推定
+
+- 一定の仮定のもとで、Parameter of interstは推論可能
+
+- 例: ランダムサンプリングデータ ($u$ の分布が独立・無相間) であれば、
+
+  - 事例数が無限大であれば、データ上の平均賃金 $=\beta_0$
+  
+  - 事例数が大きければ、データ上の平均賃金の分布は、$\beta_0$ を平均とする正規分布で近似可能
+
+    - 信頼区間の近似計算が可能
+
+- その他の部分 $u$ の分布について、信頼できる推定を行っていないことに注意
+
+## Reference

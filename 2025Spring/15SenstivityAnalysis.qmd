@@ -1,0 +1,131 @@
+---
+title: "Senstivity Analysis"
+author:
+  - name: 川田恵介
+date: now
+format:
+  revealjs:
+    incremental: true 
+    slide-number: true
+    bibliographystyle: apa
+    html-math-method: katex
+    chalkboard: true
+  typst:
+    fig-format: retina
+    bibliographystyle: apa
+    mainfont: "Hiragino Mincho ProN"
+    number-sections: true
+bibliography: "ref.bib"
+execute: 
+  echo: false
+  warning: false
+  message: false
+---
+
+# 不適切な推論
+
+## 観察されない変数を求める研究課題
+
+- 労働経済学の研究目標はしばしば、観察できない変数も含めた母分布の推定が求められる
+
+  - 因果効果: 技能訓練の効果を知りたい
+  
+    - 訓練への参加がランダムに決まるためには、"キャリアの志向"もバランスさせたいが分からない
+  
+  - 格差: 同じ教育経験を有する労働者内で、男女間賃金格差を知りたい
+  
+    - 多くのデータは、教育年数などの、"荒い"変数しか分からない
+
+## 推定目標
+
+- 本来であれば、データから観察できる変数 $X$ に加えて、観察できない変数 $U$ (キャリア志向、細かい教育経験) もバランスしたい 
+
+  - $$Y\sim D + X + U$$ をOLS推定し、$\beta_D$ を推定したい
+  
+- 実際には、 $Y\sim D + X$ しか推定できず、$\beta_D^{short}$ しか推定できない
+
+## Senstivity分析
+
+- $Y\sim D + X$ の推定結果から、$Y\sim D + X + U$ の結果を類推できないか?
+
+  - $U$ の影響について、**シナリオ** を設定する
+
+## @cinelli2020making
+
+- 入門 $+$ R/STATAでの実装法紹介 [@cinelli2024sensemakr]
+
+- $U$ の影響を2つの指標で捉える
+
+  - $Y$ についての追加的な説明力 (Partial $R^2$): $R_{Y\sim U\mid D,X}^2$
+  
+  - $D$ についての追加的な説明力: $R_{D\sim U\mid X}^2$
+
+## 推定値の関係性
+
+- 推定値 $\hat\beta_D,\hat\beta_D^{short}$ の間に、以下の関係性が成り立つ $$\mid \hat\beta_D - \hat\beta_D^{short}\mid=\sqrt{\frac{R^2_{Y\sim U\mid D,X}\times R^2_{D\sim U\mid X}}{1-R^2_{D\sim U\mid X}}}\times constant$$
+
+- constantは、$\hat\beta_D^{short}$ の標準誤差と事例数(自由度)に依存
+
+  - $U$ の $Y,D$ について説明力が大きければ、乖離が大きい
+
+## 例: 学歴の効果
+
+```{r}
+#| echo: true
+data("CPSSW8", package = "AER")
+
+model <- lm(earnings ~ education + gender + age, CPSSW8)
+
+model
+```
+
+- $U=$ 親の社会/経済状況
+
+## 例
+
+```{r}
+#| echo: true
+sensemakr::ovb_contour_plot(
+  model,
+  treatment = "education"
+)
+```
+
+## ベンチマーク
+
+- $R_{Y\sim U\mid D,X}^2$, $R_{D\sim U\mid X}^2$ の大きさについて、どのような想定をすれば良いか?
+
+- 一案は、$X$ の中から、$U$との関係性が強そうな変数を回帰から排除した際の、説明力の変化と比較
+
+  - 観察可能な変数の説明力と比較する
+
+## 例: 学歴の効果
+
+- 家庭環境の違い $=U$
+
+  - 年齢と相関があると予想する
+
+## 例: 学歴の効果
+
+```{r}
+#| echo: true
+lm(earnings ~ education + age, CPSSW8) # genderの除外
+
+lm(earnings ~ education + gender, CPSSW8) # ageの除外
+```
+
+## 例
+
+```{r}
+#| echo: true
+sensemakr::ovb_contour_plot(
+  model,
+  treatment = "education",
+  benchmark_covariates = c("age","genderfemale")
+)
+```
+
+- $U$ が年齢と同程度に重要であったとしても、結果はあまり変化しない
+
+## Reference
+

@@ -1,0 +1,535 @@
+---
+title: "不適切な統計的推論"
+author:
+  - name: 川田恵介
+date: now
+format:
+  revealjs:
+    incremental: true 
+    slide-number: true
+    bibliographystyle: apa
+    html-math-method: katex
+    chalkboard: true
+  typst:
+    fig-format: retina
+    bibliographystyle: apa
+    mainfont: "Hiragino Mincho ProN"
+    number-sections: true
+bibliography: "ref.bib"
+execute: 
+  echo: false
+  warning: false
+  message: false
+---
+
+# 不適切な推論
+
+## 復習: 統計的推論
+
+- **母集団**の特徴について、**推論(Inference)**する
+
+  - 前提 (ランダムサンプリングなど)を満たせば、結論 (信頼区間など)は**概ね**正しい
+
+    - 典型的には、「ランダムサンプリング $+$ 因果効果を識別する仮定、が満たさられるならば、平均因果効果は概ね 信頼区間 $(5,15)$ の範囲である」
+
+- 労働経済学における実証研究における必須テクニック
+
+## 不適切な推論
+
+- 適切な推論ができると「錯覚してしまう」状況に注意が必要
+
+- 本講義では、以下の典型例を紹介
+
+  - 複数の推定目標(多重検定問題)
+
+  - $Y$ による分割
+
+# 多重検定問題
+
+```{r}
+library(tidyverse)
+```
+
+## 探索的研究目標
+
+- **複数**の $Y$ や $D$ の中から、"顕著"な関係性を探したい
+
+- ここまで議論してきた統計的推論の前提が崩れていることに注意
+
+    - @imbens2021statistical, @list2019multiple
+
+## 労働経済学における研究目標例
+
+- 複雑な現象/政策介入がなされており、大量の変数間の間での（因果的)関係性を理解したい
+
+    - 職務内容のうち、賃金と相関している項目はあるか？
+    
+    - ハローワーク内でのさまざまな介入の中で、有効なものはあるか?
+    
+- ここまでの議論は、関心のある $Y$ と $D$ は一つであることが前提
+
+    - $X$ は無数にあっても良い
+
+## 多重検定問題
+
+- $Y$ と全く関係性がない/全ての負の関係性がある $D$ から、正の関係性を持つものを、誤って発見する確率が
+想定よりも課題になる
+
+  - $Y$ や $D$ が"無限大"あれば、"必ず"発見できる
+
+- "If you torture the data long enough, it will confess."
+
+  - Ronald H. Coase
+
+## 悪例:
+
+- 新聞を読む人/読まない人を比較し、どのような違いがあるのか明らかにしたい
+
+- 「独自に収集したデータをもとに、新聞を読む人と読まない人を比較した。結果読む人の方が、”友達が多い”という結果が出た。解釈としては、、、、」
+
+    - どのくらいの特徴 $(=Y)$ について推定したのか、一切記載がない
+
+- 可能な限り事前に推定対象を絞り、推定値はすべて公表すべき
+    
+## 数値例
+
+- あるプロスポーツにおいて、コイントスで先行後攻を決めている
+
+    - **研究目標:** 「一部のチームが不正コインを使用しており、コイントスの結果が50:50になっていないのではないか?」
+    
+        - 実際には不正はないとする
+    
+- 各チームのコインを回収し、実際にコイントスを繰り返してテスト
+
+## Recap: 95 $\%$ 信頼区間
+
+- ある一つのコインについて、4名の研究者がコイントスを200回行い、表の割合、および信頼区間を計算した
+
+  - ほとんど(例: $95\%$) の研究者について、信頼区間は真の値(0.5)を含む
+
+```{r, dev='ragg_png'}
+Sim <- function(
+  ResearchID, 
+  NumTarget, 
+  NumSample, 
+  Alpha) {
+    TempFit <- map_dfr(
+    1:NumTarget,
+    function(target) {
+      set.seed(ResearchID * target)
+      temp = estimatr::lm_robust(
+        sample(0:1, NumSample, replace = TRUE) ~ 1,
+        alpha = Alpha
+      ) |>
+        generics::tidy() |>
+        mutate(
+          TargetID = target
+        )
+    }
+  )
+  TempResult <- TempFit |>
+    mutate(
+      ResearcherID = ResearchID
+    )
+  return(TempResult)
+}
+
+map_dfr(
+  1:4,
+  function(R) {
+    Sim(R, 1, 200, 0.05)
+  }
+) |>
+  mutate(
+    Error = if_else(
+      conf.low >= 0.5 |
+        conf.high <= 0.5,
+      "Invalid",
+      "Valid"
+    )
+  ) |>
+  ggplot(
+    aes(
+      x = estimate,
+      xmin = conf.low,
+      xmax = conf.high,
+      y = TargetID,
+      color = Error
+    )
+  ) +
+  theme_bw() +
+  geom_vline(xintercept = 0.5) +
+  geom_pointrange() +
+  facet_wrap(~ResearcherID) +
+  xlim(0.25, 0.75) +
+  ylab("")
+```
+
+## 例. 多重検定
+　　
+- 50個のコインについて、推定した
+
+  - 全員がチートコインを**誤って**発見した
+
+```{r, dev='ragg_png'}
+map_dfr(
+  1:4,
+  function(R) {
+    Sim(R, 50, 200, 0.05)
+  }
+) |>
+  mutate(
+    Error = if_else(
+      conf.low >= 0.5 |
+        conf.high <= 0.5,
+      "Invalid",
+      "Valid"
+    )
+  ) |>
+  ggplot(
+    aes(
+      x = estimate,
+      xmin = conf.low,
+      xmax = conf.high,
+      y = TargetID,
+      color = Error
+    )
+  ) +
+  theme_bw() +
+  geom_vline(xintercept = 0.5) +
+  geom_pointrange() +
+  facet_wrap(~ResearcherID) +
+  xlim(0.25, 0.75) +
+  ylab("Coin")
+```
+
+## 直感
+
+- 誤検出された"明確な"結果 $=$ 目立ちたい研究者にとって、当たりくじ (5%の確率で引ける)
+
+    - "どんなに当たりくじでも、無限に引けば当たる"
+
+      - 50回引けば、$92.3\%$ の確率で引ける
+
+    - 統計的推論 (仮定が正しければ、結論は概ね正しい) が崩壊する
+    
+- 最低限の対策: 何回引いた(パラメタを推定した)のか、必ず明示する
+
+## Family-wise confience interval
+
+- 複数の信頼区間について、**一つ以上** ミスを犯す確率を一定以下(5%)に抑える
+
+    - $\iff$ 通常の信頼区間 $=$ 一つのパラメタについてミスを犯す確率を抑える
+    
+- Study-wise confidence intervalとも呼ばれる
+
+- 信頼区間を適切に拡張する必要がある
+
+    - 広げ方について様々な提案
+
+## Bonferoni法
+
+- かなり保守的な修正法
+
+- $k$ 個のパラメタについて、一つ以上ミスを犯す確率を $5\%$ 以下に抑えたいのであれば、$\frac{5}{k}\%$ 信頼区間を計算
+
+- パラメタが増えると無限に広くなる
+
+    - 他の方法については、[Introduction to statistical learning](https://www.statlearning.com/) 13章 参照
+
+## 例. Bonferoni法
+
+```{r, dev='ragg_png'}
+map_dfr(
+  1:4,
+  function(R) {
+    Sim(R, 50, 200, 0.05 / 50)
+  }
+) |>
+  mutate(
+    Error = if_else(
+      conf.low >= 0.5 |
+        conf.high <= 0.5,
+      "Invalid",
+      "Valid"
+    )
+  ) |>
+  ggplot(
+    aes(
+      x = estimate,
+      xmin = conf.low,
+      xmax = conf.high,
+      y = TargetID,
+      color = Error
+    )
+  ) +
+  theme_bw() +
+  geom_vline(xintercept = 0.5) +
+  geom_pointrange() +
+  facet_wrap(~ResearcherID) +
+  xlim(0.25, 0.75)
+```
+
+# $Y$による分割
+
+## 厳重注意
+
+- 労働経済学において、しばしば $Y$ でサンプルを分割した、サブサンプル分析をしたくなる"誘惑"に駆られる
+
+  - 例となる研究目標: 立場の弱い ($Y$ が平均よりも低い) グループにおいて、介入は効果を持つのか?
+
+    - $Y$ が平均よりも低い/高い事例に２分割し、サブグループごとに $Y\sim D$ を推定する
+
+    - 通常の統計的推論は不可能になる
+    
+    - $D$ や $X$ による分解は問題ない
+ 
+- @abadie2018endogenous
+
+## 数値例
+
+- $$Y= D + u$$
+
+  - $u$ は $-20,20$ までの一様分布
+
+## 例. Xによる分割
+
+```{r, dev='ragg_png'}
+SimData <- function(i, n, s) {
+  set.seed(i)
+  x = runif(
+    n,
+    0,
+    10
+  )
+  y = x + runif(n, -s, s)
+  temp = tibble(
+    x,
+    y
+  )
+}
+
+TempData = SimData(1, 300, 20)
+
+estimatr::lm_robust(
+  y ~ x,
+  TempData,
+  subset = x <= mean(TempData$x)
+) |>
+  generics::tidy() |>
+  mutate(
+    Sample = "Xが平均より低い"
+  ) |>
+  bind_rows(
+    estimatr::lm_robust(
+      y ~ x,
+      TempData,
+      subset = x > mean(TempData$x)
+    ) |>
+      generics::tidy() |>
+      mutate(
+        Sample = "Xが平均より高い"
+      )
+  ) |>
+  bind_rows(
+    estimatr::lm_robust(
+      y ~ x,
+      TempData
+    ) |>
+      generics::tidy() |>
+      mutate(
+        Sample = "全サンプル"
+      )
+  ) |>
+  filter(
+    term == "x"
+  ) |>
+  ggplot(
+    aes(
+      x = estimate,
+      xmin = conf.low,
+      xmax = conf.high,
+      y = Sample
+    )
+  ) +
+  theme_bw() +
+  geom_pointrange() +
+  geom_vline(xintercept = 1)
+```
+
+## 例. Yによる分割
+
+```{r, dev='ragg_png'}
+estimatr::lm_robust(
+  y ~ x,
+  TempData,
+  subset = y <= mean(TempData$y)
+) |>
+  generics::tidy() |>
+  mutate(
+    Sample = "Yが平均より低い"
+  ) |>
+  bind_rows(
+    estimatr::lm_robust(
+      y ~ x,
+      TempData,
+      subset = y > mean(TempData$y)
+    ) |>
+      generics::tidy() |>
+      mutate(
+        Sample = "Yが平均より高い"
+      )
+  ) |>
+  bind_rows(
+    estimatr::lm_robust(
+      y ~ x,
+      TempData
+    ) |>
+      generics::tidy() |>
+      mutate(
+        Sample = "全サンプル"
+      )
+  ) |>
+  filter(
+    term == "x"
+  ) |>
+  ggplot(
+    aes(
+      x = estimate,
+      xmin = conf.low,
+      xmax = conf.high,
+      y = Sample
+    )
+  ) +
+  theme_bw() +
+  geom_pointrange() +
+  geom_vline(xintercept = 1)
+```
+
+
+## 例. Yによる分割
+
+```{r, dev='ragg_png'}
+LineLowerMeanY = estimatr::lm_robust(
+  y ~ x,
+  TempData,
+  subset = y <= mean(TempData$y)
+) |>
+  predict(TempData)
+
+LineUpperMeanY = estimatr::lm_robust(
+  y ~ x,
+  TempData,
+  subset = y > mean(TempData$y)
+) |>
+  predict(TempData)
+
+TempData |>
+  mutate(
+    LineLowerMeanY,
+    LineUpperMeanY
+  ) |>
+  mutate(
+    Group = case_when(
+      y <= mean(y) ~ "平均値以下",
+      y >= mean(y) ~ "平均値以上"
+    )
+  ) |>
+  ggplot(
+    aes(
+      x = x,
+      y = y
+    )
+  ) +
+  theme_bw() +
+  geom_point(
+    aes(
+      color = Group
+    )
+  ) +
+  geom_smooth(
+    aes(
+      color = "全サンプル"
+    ),
+    method = "lm",
+    se = FALSE
+  ) +
+  geom_line(
+    aes(
+      y = LineUpperMeanY,
+      color = "平均値以上"
+    )
+  ) +
+  geom_line(
+    aes(
+      y = LineLowerMeanY,
+      color = "平均値以下"
+    )
+  )
+```
+
+
+## 例. Xによる分割
+
+```{r, dev='ragg_png'}
+LineLowerMeanY = estimatr::lm_robust(
+  y ~ x,
+  TempData,
+  subset = x <= mean(TempData$x)
+) |>
+  predict(TempData)
+
+LineUpperMeanY = estimatr::lm_robust(
+  y ~ x,
+  TempData,
+  subset = x > mean(TempData$x)
+) |>
+  predict(TempData)
+
+TempData |>
+  mutate(
+    LineLowerMeanY,
+    LineUpperMeanY
+  ) |>
+  mutate(
+    Group = case_when(
+      x <= mean(x) ~ "平均値以下",
+      x >= mean(x) ~ "平均値以上"
+    )
+  ) |>
+  ggplot(
+    aes(
+      x = x,
+      y = y
+    )
+  ) +
+  theme_bw() +
+  geom_point(
+    aes(
+      color = Group
+    )
+  ) +
+  geom_smooth(
+    aes(
+      color = "全サンプル"
+    ),
+    method = "lm",
+    se = FALSE
+  ) +
+  geom_line(
+    aes(
+      y = LineUpperMeanY,
+      color = "平均値以上"
+    )
+  ) +
+  geom_line(
+    aes(
+      y = LineLowerMeanY,
+      color = "平均値以下"
+    )
+  )
+```
+
+
+## Reference
+

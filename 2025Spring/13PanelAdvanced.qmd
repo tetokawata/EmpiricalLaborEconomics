@@ -1,0 +1,382 @@
+---
+title: "パネルデータ: Advanced"
+author:
+  - name: 川田恵介
+date: now
+format:
+  revealjs:
+    incremental: true 
+    slide-number: true
+    bibliographystyle: apa
+    html-math-method: katex
+    chalkboard: true
+  typst:
+    fig-format: retina
+    bibliographystyle: apa
+    mainfont: "Hiragino Mincho ProN"
+    number-sections: true
+bibliography: "ref.bib"
+execute: 
+  echo: false
+  warning: false
+  message: false
+---
+
+
+# 推定: $2\times$ Many case
+
+```{r}
+library(tidyverse)
+
+SimData <- function(NumPeriod, Cutoff, NumID) {
+  Temp = map_dfr(
+    1:NumID,
+    function(x) {
+      temp = tibble(
+        ID = rep(x, NumPeriod),
+        Period = seq(1, NumPeriod),
+        TreatGroup = sample(
+          0:1,
+          1
+        ) |>
+          rep(NumPeriod)
+      )
+      return(temp)
+    }
+  ) |>
+    mutate(
+      Y = case_when(
+        TreatGroup == 1 & Period == Cutoff ~ 1,
+        TreatGroup == 1 & Period > Cutoff ~ 5,
+        .default = 0
+      ) +
+        rnorm(NumPeriod * NumID, 0, 10),
+      D = case_when(
+        TreatGroup == 1 & Period >= Cutoff ~ 1,
+        .default = 0
+      )
+    )
+  return(Temp)
+}
+
+DataShort = SimData(2, 2, 500)
+
+DataLong = SimData(4, 3, 500)
+
+write_csv(DataLong, "Panel.csv")
+```
+
+## $2\times$ Many case
+
+- $2\times 2$の議論は、多期間に拡張できる
+
+  - ずっと$D=0$ のグループ VS 途中で$D=1$ に切り替わったグループ
+    
+  - Event studyと呼ばれる推定方法が活用可能
+    
+    
+## Event study
+
+- 4期間パネルで、Treatment Groupに対して、3期目に介入が入るのであれば、$$E[Y|Z_{it}]=\beta_{1}Z_{1} + \underbrace{\beta_{2}}_{=0と基準化}Z_2 + \beta_3Z_3 + \beta_4Z_4 + f_{i} + f_{t}$$
+
+- $Z_t=$ Treatment Group かつ $t$ 期目であれば1 、それ以外であれば0
+ 
+  - Control Group であれば、常に0
+
+## Event study
+
+- 識別の仮定のもとで、以下の式を推定すれば、動学効果、およびPallael trendsのチェックができる 
+
+$$E[Y|Z_{it}]=\underbrace{\beta_{1}}_{PallarelTrendのもとで=0}Z_{1} + \beta_3Z_3 + \beta_4Z_4 + f_{i} + f_{t}$$
+
+## 別表現
+
+- 別の表現もよく用いられる
+
+- $E_i$ : 個人 $i$ に対して介入が行われる時期
+
+    - Control groupについては、 $E_i=\infty$
+    
+## 別表現
+
+- $\beta_{-1}=0$ と基準化: $$E[Y_{it}|E_{i}=e]=\sum_{l=l_{-}}^{l_{+}}\beta_{l}\mathbb{I}[t-e=l] + f_{i} + f_{t}$$
+
+- $\mathbb{I}[t-e=l]= t-e$ が $l$ であれば1、それ以外は0 
+
+- $l_{-},l_{+} =$ 研究者が定める分析期間
+
+## R Example
+
+```{r}
+#| echo: true
+#|
+DataLong = mutate(
+  DataLong,
+  Z = case_when(
+    TreatGroup == 1 ~ 3,
+    .default = 100000
+  )
+)
+
+
+Model = fixest::feols(
+  Y ~ sunab(Z, Period) | Period + ID,
+  DataLong,
+  panel.id = "ID"
+)
+```
+
+## R Example
+
+```{r}
+fixest::iplot(Model)
+```
+
+# $Many\times Many$ 
+
+## 一般化の限界
+
+- $Many\times Many$ case (介入が開始するタイミングが3つ以上存在) での推定方法は、**まだよく分かっていない**
+
+    - 推定モデルの正しさに、結果が強く依存
+
+- 例外は、 介入が徐々に行われるケース (Staggered design)
+
+    - 直近で研究が進む
+
+## 応用例: Marriage premium/penalty
+
+- 研究対象: 結婚"経験"が労働供給に与える影響を推定したい
+
+- データ: 徐々に結婚していく
+
+    - 離婚したとしても、結婚経験がある $D=1$ と定義する
+    
+    - Control groupは一度も結婚したことがないグループ
+
+## 問題点
+
+- $2\times 2$ であれば、**識別の仮定(Pallael trends等)の下で**、Treatment Group内平均効果の信頼区間を提供
+
+- $many\times many$以外では?
+
+    - 識別のための仮定が成り立っていても、推定のための単純化が不適切な比較を生み出す
+    
+    - 個別因果効果が全て正でも、負の平均効果が推定されてしまう可能性も存在
+
+## Simple Example
+
+- 2期間モデル: 結婚が就業状態に与える因果効果を推定するために、以下を比較
+
+    - Treatment Group: 2期目に結婚
+    
+    - Control Group**s**: ずっと未婚 $\&$ **ずっと既婚**
+
+- Two-ways Fixed Effect Modelを推定すると、何らかの値が算出されるが、基本的に不適切
+
+## Simple Example
+
+- シナリオ:
+
+    - 結婚した期には、因果効果がほとんどない
+
+    - 2期目以降に労働時間を低下させる
+
+## 例
+
+```{r, dev='ragg_png'}
+tibble(
+  Period = seq(0, 2, 1),
+  TreatY = c(41, 41, 41),
+  ControlY = c(40, 40, 30),
+  TrueControlY = c(42, 42, 42),
+  EstY = c(41, 41, 37)
+) |>
+  ggplot(
+    aes(
+      x = Period,
+      y = TreatY,
+      color = "2期目に結婚",
+      linetype = "現実"
+    )
+  ) +
+  theme_bw() +
+  geom_line() +
+  geom_line(
+    aes(
+      y = ControlY,
+      color = "ずっと既婚",
+      linetype = "現実"
+    )
+  ) +
+  geom_line(
+    aes(
+      y = TrueControlY,
+      color = "ずっと未婚",
+      linetype = "現実"
+    )
+  ) +
+  geom_line(
+    aes(
+      y = EstY,
+      color = "2期目に結婚",
+      linetype = "推定された未婚時の労働時間"
+    )
+  ) +
+  ylab("労働時間") +
+  ylim(25, 45)
+```
+
+- 2期目に結婚したグループの因果効果を推定する際に、**ずっと既婚グループ**もControl groupとして使用してしまう
+
+## 問題点
+
+- 識別の仮定**ではなく**、 推定のために導入された仮定 (Two way fixed effect model)が問題
+
+- $D$ が変化していない(介入が生じていない $\&$ **生じた後**)期間を全てControl groupとして使ってしまう
+
+- $2\times 2$ では、 最初から介入が生じているの事例を削除すれば良い
+
+- 多期間の場合については、一般的な方法はよくわかっていない
+
+    - 例外ケース: Staggered design
+
+## 異質性を考慮した推定
+
+- @sun2021estimating のアプローチを紹介
+
+  - コホート別動学効果を集計する
+
+- 他の手法としては、@roth2023s, @miller2023introductory, @de2023two を参照
+
+## コホート別動学効果
+
+- $$E[Y_{i,t}|e,l,f_i]=\sum_{l}\beta_{e,l}\mathbb{I}(e,t-e=l)+f_i+f_t$$
+
+    - $\beta_{e,l}$ $e$期目に介入を受けるグループにおける、 介入発生から $l$ 期経過した場合の因果効果
+
+    - $\beta_{e,-1} =0$ と基準化
+
+- 介入発生からの期間 $l$ と介入を受ける時期 $e$ (コホート)に応じて、異なる平均効果を便宜的に推定
+
+## 推定
+
+- 各コホート $e$ とcontrol groupを使って、コホート単位で平均動学効果を推定する。
+
+## 例. コホート期間別平均効果
+
+```{r}
+library(tidyverse)
+library(fixest)
+SimData <- function(NumPeriod, Cutoff, NumID) {
+  Temp = map_dfr(
+    1:NumID,
+    function(x) {
+      temp = tibble(
+        ID = rep(x, NumPeriod),
+        Period = seq(1, NumPeriod),
+        TreatGroup = sample(
+          0:1,
+          1
+        ) |>
+          rep(NumPeriod)
+      )
+      return(temp)
+    }
+  ) |>
+    mutate(
+      Y = case_when(
+        TreatGroup == 1 & Period == Cutoff ~ 1,
+        TreatGroup == 1 & Period > Cutoff ~ 5,
+        .default = 0
+      ) +
+        rnorm(NumPeriod * NumID, 0, 10),
+      D = case_when(
+        TreatGroup == 1 & Period >= Cutoff ~ 1,
+        .default = 0
+      )
+    )
+  return(Temp)
+}
+
+DataLong = SimData(4, 3, 500) |>
+  mutate(
+    Group = 3
+  ) |>
+  bind_rows(
+    SimData(4, 4, 500) |>
+      mutate(
+        Group = 4
+      )
+  ) |>
+  mutate(
+    Group = case_when(
+      TreatGroup == 1 ~ Group,
+      .default = 10000
+    )
+  )
+```
+
+```{r}
+#| echo: true
+
+Model = feols(
+  Y ~ sunab(Group, Period) | ID + Period,
+  DataLong,
+  cluster = ~ID
+)
+
+summary(Model, agg = FALSE)
+```
+
+## 期間別平均効果
+
+- $\beta_{e,l}$ の $e$ についての平均値
+
+```{r}
+#| echo: true
+summary(Model, agg = "period")
+```
+
+## コホート別平均効果
+
+- $\beta_{e,l}$ の $l$ についての平均値
+
+```{r}
+#| echo: true
+summary(Model, agg = "cohort")
+```
+
+## 平均効果
+
+- $\beta_{e,l}$ の平均値
+
+```{r}
+#| echo: true
+summary(Model, agg = "ATT")
+```
+
+## コントロール変数との併用
+
+- 個人内で変化する変数 $X$ は導入可能 $\beta_1X_{1,it}+..\beta_LX_{L,it}$
+
+- 問題点: Cross sectionと同様に、介入の影響を受けない変数のみ導入すべき
+
+    - 過去のイベントの影響を受けない変数とは???
+
+- @callaway2021difference : 時間を通じて変化しない変数 (生まれ年、性別等)について、"マッチング"し推定
+
+    - [did](https://cran.r-project.org/web/packages/did/vignettes/did-basics.html)
+
+## まとめ
+
+- 介入変数 $D$ が２値の場合、推奨は
+
+    - ２期間パネル: ずっと介入を受け続けているグループを排除し、通常のTwo-way fixed effect modelで推定
+    
+    - 多期間パネル: Staggered design になっているか確認し、問題なければ @sun2021estimating (他の手法は、@roth2023s, @miller2023introductory, @de2023two などを参照) などの手法を用いて推定
+
+- $D$ が連続変数のケースなどの一般化は可能? [@callaway2024difference]
+
+
+# Reference

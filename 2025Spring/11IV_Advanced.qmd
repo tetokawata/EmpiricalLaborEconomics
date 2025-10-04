@@ -1,0 +1,228 @@
+---
+title: "Instrumental Variables: Advanced"
+author: "川田恵介"
+date: now
+format:
+  revealjs:
+    incremental: true 
+    slide-number: true
+    bibliographystyle: apa
+    html-math-method: katex
+    chalkboard: true
+  typst:
+    fig-format: retina
+    bibliographystyle: apa
+    mainfont: "Hiragino Mincho ProN"
+    number-sections: true
+bibliography: "ref.bib"
+execute: 
+  echo: false
+  warning: false
+  message: false
+  eval: true
+---
+
+# Control 変数の導入
+
+## Encouragement Designの模倣
+
+- $Z$ はランダムに決まっている必要がある
+
+  - コントロール変数 $X$ 内で、ランダムに決まっているのであれば、操作変数を利用した推定が可能
+  
+- 仮に$Z$ がランダムに決まっているとしても、Exclusive restriction ($Z$ は、$D$ の変化のみを通じて、$Y$に影響を与える)の問題が生じうることに注意
+
+## ivregを用いた実装
+
+```{r}
+#| echo: true
+library(ivreg)
+library(tidyverse)
+
+data("CPSSW04", package = "AER")
+
+Model = ivreg(
+  earnings ~ degree + age| 
+    gender + age,
+  data = CPSSW04
+)
+```
+
+## ivregを用いた実装
+
+```{r}
+#| echo: true
+
+summary(Model)
+```
+
+# Fuzzy Regression Discontinuity
+
+```{r}
+library(tidyverse)
+library(rdrobust)
+library(rddensity)
+
+Data = read_csv("FuzzyRD.csv")
+```
+
+## Regression Discontinuityへの応用
+
+- 操作変数の重要な応用
+
+- 「Cutoff の前後で、**一部の事例**について、$D$ が変化する」状況を活用可能にする
+
+  - Slide 09 (Sharp discontinuity) では、**すべての**事例が変化する状況を議論
+
+- Cutoff前後で、$D$ への変化をencourageしていると解釈できる
+
+## Example: @londono2020upstream
+
+- 政府の教育への助成が
+
+    - Running variable $X$ : 高校卒業試験成績 (一定の成績が受領資格)
+    
+    - Treatment $D$ : 助成金の受領 (資格を満たしたとしても、全員が受領するわけではない)
+    
+    - Outcome $Y$ : 高等教育への参加
+
+## Example: D - X
+
+```{r}
+#| echo: true
+rdplot(
+  Data$D,
+  Data$X1
+)
+```
+
+## Example: Y - X
+
+```{r}
+#| echo: true
+rdplot(
+  Data$Y,
+  Data$X1
+)
+```
+
+## Example: Main Estimation
+
+- $\bar{X}$ 上での因果効果 $=Yへの因果効果/Dへの因果効果$
+
+```{r}
+#| echo: true
+Model = rdrobust(
+  Data$Y,
+  Data$X1, 
+  fuzzy = Data$D # Treatment
+  )
+
+summary(Model)
+```
+
+# Identfication
+
+## Identification
+
+- 実数 $X$ について、
+
+    - $D$ の分布はジャンプする $$\lim_{\epsilon\rightarrow 0}\Pr[D=1|\bar{X}+\epsilon]\neq \lim_{\epsilon\rightarrow 0}\Pr[D=1|\bar{X}-\epsilon]$$
+    
+    - 注: Sharp Discontinuityでは、$$\lim_{\epsilon\rightarrow 0}\Pr[D=1|\bar{X}+\epsilon] = 1,$$ $$\lim_{\epsilon\rightarrow 0}\Pr[D=1|\bar{X}-\epsilon] = 0$$
+
+## Identification
+
+- Post-treatment variables **以外**の観察できる/できない変数 $Z$ の分布はジャンプしない $$\lim_{\epsilon\rightarrow 0}f(Z|\bar{X}+\epsilon)= \lim_{\epsilon\rightarrow 0}f(Z|\bar{X}-\epsilon)$$
+
+    - Exclusive restriction および 操作変数のConditional randomizationに対応
+
+## Intention to treat
+
+- $X=\bar{X}$ を満たすグループ内の平均因果効果は、以下で識別される $$\lim_{\epsilon\rightarrow 0}E[Y|\bar{X}+\epsilon]- E[Y|\bar{X}-\epsilon]$$
+
+## Local average treatment effect on cutoff
+
+- $X=\bar{X}$ を満たすComplier内の平均因果効果は、以下で識別される $$\lim_{\epsilon\rightarrow 0}\frac{E[Y|\bar{X}+\epsilon]- E[Y|\bar{X}-\epsilon]}{E[D|\bar{X}+\epsilon]- E[D|\bar{X}-\epsilon]}$$
+
+- Complier: $X$ が $\bar{X}$ 以下であれば$D=0$, 以上であれば $D=1$ となる事例
+
+    - Cutoffを超えるかどうかに反応するグループ
+
+# Estimation
+
+- Sharp Regression Discontinuityと同様に、Local regressionが標準的な推定方法
+
+    - 信頼区間も提供できる
+    
+    - Bandwidthの選択に注意が必要
+
+## Recap: Local regression
+
+- Local regression $$\min\sum \omega_i\times\biggr(Y - \beta_0 - \beta_1 X - \beta_2 X^2-..\biggr)^2$$
+
+- $\omega_i =$ (kernel) weight ($\bar{X}$ 付近の事例について、大きな加重をつける
+
+## Recap: Kernel weight
+
+- Bandwidth $=1$
+
+```{r}
+tibble(
+  X = seq(-2,2,0.05),
+  Uniform = case_when(
+    X >= -1 & X <= 1 ~ 0.5,
+    .default = 0
+  ),
+  Triangular = case_when(
+    X >= -1 & X <= 1 ~ 1 - abs(X),
+    .default = 0
+  ),
+  Epanechnikov = case_when(
+    X >= -1 & X <= 1 ~ (3/4)*(1 - X^2),
+    .default = 0
+  )
+  ) |> 
+  ggplot(
+    aes(
+      x = X,
+      y = Uniform
+    )
+  ) +
+  theme_bw() +
+  geom_point(
+    aes(
+      color = "Uniform"
+    )
+  ) +
+  geom_point(
+    aes(
+      y = Triangular,
+      color = "Triangular"
+    )
+  ) +
+  geom_point(
+    aes(
+      y = Epanechnikov,
+      color = "Epanechnikov"
+    )
+  )
+```
+
+## 論点: Bandwidth selection
+
+- Fuzzy regression discontinuityにおいては、 $E[Y|X=\bar{X} + \epsilon],E[D|X=\bar{X} + \epsilon]$ を推定する必要がある
+
+    - 異なるBandwidthを用いるべきか？
+    
+- Intention to treat を推定するのであれば、異なるBandwidthを用いても問題ない
+
+## 論点: Bandwidth selection
+
+- Local average treatment effectを推定するのであれば、同じBandwidthを用いることを推奨
+
+    - 異なるBandwidth $=$ 分子と分母で異なる事例を用いて推定していることになってしまう
+    
+    - rdrobust関数では、local average treatment effectの平均二乗誤差を最小化するように共通のBandwidthを設定
+
+## Reference

@@ -1,0 +1,118 @@
+---
+title: "R入門"
+format:
+  revealjs:
+    incremental: true 
+    slide-number: true
+    html-math-method: katex
+  pdf:
+    pdf-engine: lualatex
+    documentclass: ltjsarticle 
+    toc: true
+    toc-depth: 3
+    number-sections: true
+execute: 
+  warning: false
+  message: false
+---
+
+## Why R?
+
+- 分析の再現性（Reproducibility) への関心は強まっており、open-sourceな言語になれることの利点は大きい
+
+- Rは有力な選択肢
+
+    - 豊富なIDEの選択肢、盛んなパッケージ (分析用の関数を追加) 開発、無料等々多くの利点
+    
+    - **私見:** 現状、Pythonと比べて、標準的な統計分析/機械学習については大きな差がない
+    
+      - Deep Learning系統については、Pythonに優位性
+      
+      - Balancing weightについては、Rに優位性?
+
+
+## コード例
+
+```{r}
+#| echo: true
+#| eval: false
+library(tidyverse) # <1>
+
+Data <- read_csv("Public/Data.csv") # <2>
+
+summary(Data) # <3>
+```
+
+1. パッケージの読み込み
+
+2. データの読み込み、Dataと名づける $\&$ 保存
+
+3. 記述統計量の計算
+
+## 基本文法
+
+- Rの学習 $=$ PCへの作業依頼書(コード)の書き方を学ぶ
+
+    - R語で書く必要がある
+
+- 重要文法
+
+  - "summary()" 関数: 記述統計量の計算
+
+  - "Data <-" : 保存するObject("情報")と"Data"と名付ける
+  
+    - 名前がついていないObjectは、自動的に削除される
+    
+  - "summary(Data)": "Data objectについて記述統計量を計算せよ"
+
+## よくあるタイポ
+
+- 名前には、**アルファベット** か **数字**　のみ使用
+
+- 大文字と小文字を区別する
+
+- 括弧内のコンマ(,)やdouble quotation ("") に注意
+
+- 極力、空行や空白を入れて読みやすくする
+
+## パイプ演算子
+
+```{r}
+#| eval: false
+#| echo: true
+Data <- data("CPS1985", package = "AER")
+
+summary(Data)
+```
+
+- パイプ演算子 (|> または %>%) を用いて、書き換えられる
+
+```{r}
+#| eval: false
+#| echo: true
+data("CPS1985", package = "AER") |>
+  summary()
+```
+
+- ショットカットはCtrl + Shift(Option) + M
+
+- functionA() |> functionB(): 関数Aの出力を関数Bに入力する
+
+## 分析の実行
+
+- 計算時間がかからないコードについては、"最初から全て実行"を強く推奨
+
+  - ctr + A
+  
+  - ctr + Enter
+
+## おすすめ資料
+
+- [Statistical Inference via Data Science: A ModernDive into R and the Tidyverse](https://moderndive.com/index.html)
+
+  - 回帰分析の解釈については、古典的線形モデルを前提としていることに注意
+  
+    - 本講義の議論の特殊ケース
+    
+      - 社会分析においては、古典的線形モデルを前提としないことが現実的
+

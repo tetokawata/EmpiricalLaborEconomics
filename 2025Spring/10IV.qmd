@@ -1,0 +1,260 @@
+---
+title: "Instrumental Variables"
+author: "川田恵介"
+date: now
+format:
+  revealjs:
+    incremental: true 
+    slide-number: true
+    bibliographystyle: apa
+    html-math-method: katex
+    chalkboard: true
+  typst:
+    fig-format: retina
+    bibliographystyle: apa
+    mainfont: "Hiragino Mincho ProN"
+    number-sections: true
+bibliography: "ref.bib"
+execute: 
+  echo: false
+  warning: false
+  message: false
+  eval: true
+---
+
+# Get started
+
+```{r}
+library(tidyverse)
+```
+
+## Instrumental variable
+
+- 操作変数法
+
+- RDと並び、局所的な実験的状況を活用する[代表的手法](https://www.nobelprize.org/prizes/economic-sciences/2021/press-release/)
+
+    - ランダム化された変数(操作変数)により、介入が"誘発"する実験的状況を活用
+
+- 不適切な状況で乱用される傾向があるので要注意
+
+## Example: Encouragement Design
+
+- Research question $=$ データ分析技能訓練 $=D$ が、30歳時点の所得 $=Y$ に与える因果効果
+
+  - 操作変数: 技能訓練参加費の割引クーポン $(=Z)$ をランダムに配布
+  
+    - 見たい介入を誘発する実験
+
+- "クーポン"の効果は、容易に識別可能 $$E[y(z=1) - y(z=0)]=E[Y\mid Z=1] - E[Y\mid Z=0]$$
+
+## Example: Encouragement Design
+
+- クーポン配布が以下を満たすのであれば、クーポンの効果は、技能訓練 $=D$ の因果効果として再解釈できる
+
+- ($X$内で)ランダムに配布される
+
+- クーポンは、技能訓練のみを通じて、賃金に影響を与える
+
+    - 何があっても訓練に参加する/しない事例については、クーポンは賃金を変化させない
+        
+- クーポンは、技能訓練への参加を促進する
+
+## Example: Encouragement Design
+
+- クーポンはランダムに配布されているので、
+
+    - $E[Y|Z=1] - E[Y|Z=0]=$ "クーポン"の"賃金(Y)"への効果
+
+    - $E[D|Z=1] - E[D|Z=0]=$ "クーポン"の"職業訓練(D)"への効果
+
+## Example: Encouragement Design
+
+- クーポンに反応する割合: $E[D|Z=1] - E[D|Z=0]$
+
+- クーポンは、技能訓練のみを通じて、賃金に影響を与えるので、 $$E[Y|Z=1] - E[Y|Z=0]$$ $$= 職業訓練の効果 \times \{E[D|Z=1] - E[D|Z=0]\}$$
+
+- $$職業訓練の因果効果=\frac{E[Y|Z=1] - E[Y|Z=0]}{E[D|Z=1] - E[D|Z=0]}$$
+
+## 実例 Twin experiment
+
+- @griffen2015fertility
+
+- 「女性の労働供給」の議論の中で、子供が与える影響は大きな論点
+
+    - 子育て負担が女性に集中しがち $\rightarrow$ 労働供給減少
+    
+    - 生活/教育費の増大 $\rightarrow$ 労働供給増加
+
+- 子供数の決定には、無数の背景変数
+
+- 操作変数: 双子が生まれたかどうか
+
+# 識別: 2 by 2 Case
+
+## 注意点
+
+
+- $Z$ についての実験の再解釈 ($D$ の効果) であるという見方が（理解の上で）有益
+
+- RD同様に、局所的な平均効果を推定していることに注意
+
+    - $Z/D$ が２値変数であれば、明示可能
+    
+    - より一般のケースについては、不透明 
+    
+      - [@ding2023first](https://arxiv.org/abs/2305.18793) 参照
+
+## 識別の仮定
+
+- $X$ が同じであれば、$Z$ はランダムに決まっている (Conditional independence/exogeneity)
+
+- すべての$x,z$ について、 $0 < \Pr[z|X=x] < 1$ (Positivity)
+
+- 他者の$d,z$に影響を受けない (No interference)
+
+## ４類型
+
+- $Z$ が $D$ に与える因果的影響について、４種類に分類できる
+
+| Type | Dが0の場合 | Dが1の場合 |
+|:----:|:----------:|:----------:|
+| Always taker(A) | 1 | 1 |
+| Never taker(N) | 0 | 0 |
+| Complier(C) | 0 | 1 |
+| Defier(D) | 1 | 0 |
+
+## 追加の識別の仮定
+
+- ComplierかDefierについて、
+
+    - どちらかは存在する (Relevance)
+
+    - どちらか一方のみ存在する (Monotonicity)
+
+- Always takerおよびNever takerについては、Zは因果効果を持たない (Exclusive restriction)
+
+## Intention-to-treat
+
+- $Z$ の $Y$ への因果効果: $$\tau_Z(X)=E[Y|Z=1,X]-E[Y|Z=0,X]$$
+
+## 分解
+
+- $$\tau_Z(X)=Aの割合\times \underbrace{A内での平均因果効果}_{=0\ (ExclusiveRestriction)}$$ $$+Nの割合\times \underbrace{N内での平均因果効果}_{=0\ (ExclusiveRestriction)}$$ $$+\underbrace{Cの割合}_{>0\ (Relevance)}\times C内での平均因果効果$$  $$+\underbrace{Dの割合}_{=0\ (Monotonicity)}\times D内での平均因果効果$$
+
+## 分解
+
+- $$\tau_Z(X)=\underbrace{Cの割合}_{E[D|1,X] - E[D|0,X]}\times C内での平均因果効果$$
+
+- $$C内での平均因果効果=\frac{\tau_Z(X)}{\underbrace{E[D|1,X] - E[D|0,X]}_{\neq0\ (Relevance)}}$$
+
+- 操作変数法は、Complier (操作変数に反応するグループ) 内での平均因果効果(Local Average Treatment Effect)を識別する
+
+# 推定
+
+
+## Two-stage least square
+
+- 代表的な推定方法
+
+1. $D\sim Z$ をOLS回帰し、$D$ の予測モデル $g_D(Z)=\bar\beta_ 0 + \bar\beta_ZZ$ を推定
+
+2. $Y\sim g_D(Z)$ をOLS回帰し、Local Average Treatment Effectの推定値とする
+
+    
+## ivregを用いた実装
+
+```{r}
+#| echo: true
+library(ivreg)
+library(tidyverse)
+
+data("CPSSW04", package = "AER")
+
+Model = ivreg(
+  earnings ~ degree | 
+    gender,
+  data = CPSSW04
+)
+```
+
+## ivregを用いた実装
+
+```{r}
+#| echo: true
+
+summary(Model)
+```
+
+# 仮定の検討
+
+- 慎重に活用すべき
+
+    - 操作変数を使った方が、推定結果が改善するケースは、"限定的"
+
+        - 「$Z$ の因果効果を$D$ の因果効果を解釈する」という"離れ業"をしていることを常に念頭に
+
+## Conditional independency
+
+- 操作変数はランダム化されている必要がある
+
+     - 活用できる自然実験の範囲を広げているだけであり、自然実験自体は必要
+
+## Exclusive restriction
+
+- "離れ業"を可能にしている、問題の仮定
+
+- $D$ のみを通じて影響を与えるとは？、どのようにテストする?
+
+    - 方法論的にも未解決な課題
+
+## Relevance
+
+- 慎重にデザインされたEncouragement expeirmentが実施されていれば、以上の仮定は満たしやすい
+
+    - 実験の実現可能性も高まる ($D$ を高めるNudge的な介入など)
+
+    - Exclusive restrictionを満たすためには、十分に"弱い介入"である必要がある
+    
+        - $D=1$ にするために多額の"補助金"を投入すれば、Always takerであったとしても、$Y$が変化する可能性がある
+        
+- 弱くしすぎると、Relevanceが満たされにくくなる
+
+    - 「職業訓練を推奨する」というだけでは、誰も従わないかもしれない
+
+## Weak IV
+
+- $E[D|Z=1,X]-E[D|Z=0,X]=0$ であれば、識別不可能
+
+- $E[D|Z=1,X]-E[D|Z=0,X]$ が非常に小さければ、識別は可能だが、推定困難
+
+    - 推定誤差が爆発的に大きくなりうる
+
+
+## 解釈問題
+
+- 局所的な因果効果であることに注意
+
+    - あくまでもComplier内の効果
+
+- 特にWeak IVのケースでは、かなり限られた層内での効果にすぎない恐れが強くなる
+
+    - 例: 「推奨する」という文言に反応する層内での効果
+
+## 拡張
+
+- コントール変数 $X$ 導入、$Z$ や $D$ が連続変数であったとしても、Two-stage least squareは適用可能
+
+  - 効果が完全に同質 ($\tau$ が一定)で**なければ**、解釈が難しい
+
+## まとめ
+
+- 操作変数法の慎重な活用は、因果効果解明に活用できる実験の種類を増やす
+
+    - Encouragement experimentは、倫理的、予算的に活用可能な場面は多い
+    
+- ただし、通常のRCTと比べて、Exclusive restrictionが要求され、正当化が難しい
+
+    - Relevanceとの間にトレードオフが発生しがち
+
+## Reference

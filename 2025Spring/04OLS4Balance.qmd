@@ -1,0 +1,460 @@
+---
+title: "Linear Model for Comparison"
+author: "川田恵介"
+format:
+  typst:
+    fig-format: retina
+    mainfont: "Hiragino Mincho ProN"
+    number-sections: true
+  revealjs:
+    incremental: true 
+    slide-number: true
+    html-math-method: katex
+    embed-resources: true
+execute: 
+  warning: false
+  message: false
+  eval: true
+  echo: false
+bibliography: "ref.bib"
+bibliographystyle: harvard-cite-them-right
+---
+
+# 比較研究
+
+## 比較研究
+
+- 「何らかの集団を比較し、重要な特徴を把握する」研究目標
+
+  - 質/量的研究問わず、社会科学研究の中心的課題の一つ
+  
+- 例:
+
+  - 雇用形態(正規/非正規)間での賃金格差
+  
+  - 学位が賃金に与える因果効果を明らかにするために、学位取得者/非取得者を比較する
+
+  - 旧西ドイツと東ドイツを比較する
+
+## 社会の線型モデルに比べた利点
+
+- OLS/最尤法ともに、社会の近似的モデルを推定するモデルとして解釈できる
+
+  - 比較研究と同様に、社会の特徴理解が目的
+
+- 比較研究の方が、研究対象と推定対象が明確になる傾向
+  
+  - "モデル"という曖昧さを含む言葉を使わずに、研究対象や推定対象を定義できる
+
+# 単純比較研究
+
+## 単純比較研究
+
+- **研究課題:** グループ $(D=1,0)$ 間の差異を明らかにする
+
+- **推定課題:** 母集団における平均差 $$E[Y\mid D=1] - E[Y\mid D=0]$$
+
+- **推定値:** データ上の平均差 $\mu(D=1) - \mu(D=0)$ 
+
+  - $+$ 信頼区間
+
+  - OLSも活用可能
+
+## 例: "人種"間平均賃金格差
+
+- 研究課題 $=$ 労働市場政策を議論する土台として、"人種"間格差の現状を知りたい
+
+- 推定課題 $=$ 男女間平均賃金格差 $$E[賃金\mid afam] - E[賃金\mid cauc]$$
+
+- 推定値 $=$ データ上の平均差 $\mu(afam) - \mu(cauc)$ 
+
+  - $+$ 信頼区間
+
+  - OLS(単回帰)による実装も可能: $$賃金\sim afamダミー$$
+
+## 例: "人種"間平均賃金格差
+
+```{r}
+#| echo: true
+
+data("CPS1988", package = "AER")
+
+lm(wage ~ ethnicity, CPS1988)
+```
+
+
+## 別解釈
+
+- データ上でも母集団上でも、繰り返し平均値の公式より、 $$E[Y\mid D=1] - E[Y\mid D=0]$$ $$=\sum_{X}\{\underbrace{E[Y\mid D=1,X]}_{X内での平均値}\underbrace{f(X\mid D=1)}_{Xの分布}$$ $$- E[Y\mid D=0,X]f(X\mid D=0)\}$$
+
+- 単純差 $=$ $X$ 内での平均差 $+$ $X$ の分布の差
+
+## 実例: シンプルな比較
+
+```{r}
+#| echo: false
+library(tidyverse)
+
+data("CPS1988", package = "AER")
+
+
+CPS1988_Lim <- CPS1988 |>
+  filter(
+    education == 12 |
+      education == 16 |
+      education == 18
+  )
+
+CPS1988_Lim |>
+  mutate(
+    `E[Y|D,X]` = mean(wage) |> round(1),
+    N = n(),
+    .by = c(education, ethnicity)
+  ) |>
+  mutate(
+    `f(X|D)` = (N / n()) |> round(3),
+    .by = ethnicity
+  ) |>
+  distinct(
+    `E[Y|D,X]`,
+    `f(X|D)`,
+    ethnicity,
+    education
+  ) |>
+  arrange(
+    education,
+    ethnicity
+  ) |>
+  tinytable::tt()
+```
+
+- caucの平均賃金 $=$ `r mean(CPS1988_Lim$wage[CPS1988_Lim$ethnicity == "cauc"]) |> round(1)` / afamの平均賃金 $=$ `r mean(CPS1988_Lim$wage[CPS1988_Lim$ethnicity == "afam"]) |> round(1)`
+
+
+
+# バランス後の比較
+
+## What If分析の一種
+
+- 研究課題: **もし**$X$ の分布に差がなかった場合の$Y$ の平均差は?
+
+  - 例: 格差分析: もし"ethnicity"間で教育年数の分布に差がなかった場合の賃金格差は?
+  
+  - 例: 因果効果: 「仮想的なランダム化実験結果」を再現するためには、$X$の分布を揃える必要がある
+  
+- $X$ の分布を、**研究者が事前に設定した**目標割合に調整する
+  
+
+## 例: もし学歴分布が同じであれば?
+
+```{r}
+Temp <- CPS1988_Lim |>
+  mutate(
+    E_Y = mean(wage) |> round(1),
+    N = n(),
+    .by = c(education, ethnicity)
+  ) |>
+  mutate(
+    `f(X|D)` = (N / n()) |> round(3),
+    .by = ethnicity
+  ) |>
+  distinct(
+    E_Y,
+    `f(X|D)`,
+    ethnicity,
+    education
+  ) |>
+  arrange(
+    education,
+    ethnicity
+  ) |>
+  mutate(
+    目標割合 = c(rep(0.6, 2), rep(0.2, 4)) |>
+      round(3)
+  )
+
+Temp |>
+  tinytable::tt()
+```
+
+- caucの(調整後)平均賃金 $=$ `r sum((Temp$E_Y*Temp$目標割合)[Temp$ethnicity == "cauc"]) |> round(1)` / afamの平均賃金 $=$ `r sum((Temp$E_Y*Temp$目標割合)[Temp$ethnicity == "afam"]) |> round(1)`
+
+## Balancing Weightによる実装
+
+- 以下の手順でバランス後の比較は実装できる
+
+1. Balancing Weight $w(D,X)$ $=$ 目標割合/実際の割合
+
+2. Weighted mean differenceを計算 $$D=1における [w(D=1,X)\times Y] の平均値$$ $$-D=0における [w(D=0,X)\times Y] の平均値$$
+
+## 例: もし学歴分布が同じであれば?
+
+```{r}
+Temp <- CPS1988_Lim |>
+  mutate(
+    E_Y = mean(wage) |> round(1),
+    `E[Y|D,X]` = mean(wage) |> round(1),
+    N = n(),
+    .by = c(education, ethnicity)
+  ) |>
+  mutate(
+    `f(X|D)` = (N / n()) |> round(3),
+    .by = ethnicity
+  ) |>
+  distinct(
+    `E[Y|D,X]`,
+    E_Y,
+    `f(X|D)`,
+    ethnicity,
+    education
+  ) |>
+  arrange(
+    education,
+    ethnicity
+  ) |>
+  mutate(
+    目標割合 = c(rep(0.6, 2), rep(0.2, 4)) |>
+      round(3),
+    w = (目標割合 / `f(X|D)`) |> round(3)
+  )
+
+Temp |>
+  select(-E_Y) |>
+  tinytable::tt()
+```
+
+## バランス後の比較の課題
+
+- $X$ の数が多い場合、完璧なバランスは難しい
+
+  - $D=1$ または $=0$しか存在しない組み合わせが発生
+  
+  - 極端に大きなWeightを付与する事例が発生
+  
+    - 推定精度が悪化
+
+- 近似的なバランスを目指す
+
+    - 多くの発展的手法(含む機械学習の応用)は、近似的バランスの一つの手法であると解釈できる
+
+# 重回帰の別解釈
+
+## データ上での近似的なBalance
+
+- $Y\sim D + X_1 + .. + X_L$ をOLSで推定した際の $D$ の係数値 $\beta_D$ は、以下の手順でも計算できる
+
+1. データ上で、以下の性質を満たす$\omega(D,X)$を計算
+
+- $$(D_i=1)について\omega(1,X)\times X_{i,l}の平均$$ $$=(D_i=0)について\omega(0,X)\times X_{i,l}の平均$$
+
+- 上記を満たす $\omega(d,x)$ のなかで、分散が最小
+
+## データ上での近似的なBalance
+
+2. $$\beta_D=(D_i=1)について\omega(1,X)\times Y_{i}の平均$$ $$-(D_i=0)について\omega(0,X)\times Y_{i}の平均$$
+
+- $X$ の**平均値**をバランスさせた上での、$Y$ の平均差
+
+  - 近似的なバランス後の比較
+
+- 詳細は、@chattopadhyay2023implied
+
+## 例
+
+```{r}
+#| echo: true
+data("CPS1988", package = "AER")
+
+mean(CPS1988$wage[CPS1988$ethnicity == "cauc"])
+
+mean(CPS1988$wage[CPS1988$ethnicity == "afam"])
+```
+
+- OLSを行ってもOK
+
+```{r}
+#| echo: true
+lm(wage ~ ethnicity, CPS1988)
+```
+
+
+## 例
+
+- lmw packageを用いれば、OLSが算出するweightを計算できる
+
+```{r}
+#| echo: true
+weight_ols <- lmw::lmw(~ ethnicity + education, CPS1988) |>
+  magrittr::extract2("weights")
+```
+
+- weightを用いた平均
+
+```{r}
+#| echo: true
+mean((weight_ols * CPS1988$wage)[CPS1988$ethnicity == "cauc"])
+
+mean((weight_ols * CPS1988$wage)[CPS1988$ethnicity == "afam"])
+```
+
+## 例
+
+- 重回帰の結果と一致
+
+```{r}
+#| echo: true
+lm(wage ~ ethnicity + education, CPS1988)
+```
+
+## 例
+
+- weightを用いれると、学歴の平均値はバランス
+
+```{r}
+#| echo: true
+mean(CPS1988$education[CPS1988$ethnicity == "cauc"])
+
+mean(CPS1988$education[CPS1988$ethnicity == "afam"])
+
+mean((weight_ols * CPS1988$education)[CPS1988$ethnicity == "cauc"])
+
+mean((weight_ols * CPS1988$education)[CPS1988$ethnicity == "afam"])
+```
+
+## さらなるバランス
+
+- OLSを用いれば、"平均値"のみならず分散などもバランスできる
+
+- $Y\sim D + X + X^2$ を推定すれば、$X$の平均値と分散もバランス
+
+- $Y\sim D + X_1 + X_2 + X_1^2 + X_2 + X1*X2$ を推定すれば、$X_1,X_2$の平均値と分散、共分散もバランス
+
+
+## 補論: 分散/共分散
+
+- 分散: $X_1$ のばらつきを捉える指標
+
+    - $(X_1 - X_1の平均値)^2$ の平均値
+
+- 共分散: $X_1$ と $X_2$ の相関関係を捉える指標
+
+    - $(X_1 - X_1の平均値)\times (X_2 - X_2の平均値)$ の平均値
+
+## 例: $Y\sim D + X$
+
+```{r}
+weight <- lmw::lmw(
+  ~ ethnicity + education,
+  CPS1988_Lim
+) |>
+  magrittr::extract2("weights")
+
+
+Temp <- CPS1988_Lim |>
+  mutate(Omega = weight |> round(3)) |>
+  mutate(
+    E_Y = mean(wage) |> round(1),
+    `E[Y|D,X]` = mean(wage) |> round(1),
+    N = n(),
+    .by = c(education, ethnicity)
+  ) |>
+  mutate(
+    `f(X|D)` = (N / n()) |> round(3),
+    .by = ethnicity
+  ) |>
+  distinct(
+    `E[Y|D,X]`,
+    E_Y,
+    `f(X|D)`,
+    ethnicity,
+    education,
+    Omega
+  ) |>
+  arrange(
+    education,
+    ethnicity
+  ) |>
+  mutate(
+    目標割合 = (Omega * `f(X|D)`) |> round(3)
+  )
+
+Temp |>
+  select(-E_Y) |>
+  tinytable::tt()
+```
+
+## 例: $Y\sim D + X + X^2$
+
+```{r}
+weight <- lmw::lmw(
+  ~ ethnicity + poly(education, 2),
+  CPS1988_Lim
+) |>
+  magrittr::extract2("weights")
+
+
+Temp <- CPS1988_Lim |>
+  mutate(Omega = weight |> round(3)) |>
+  mutate(
+    E_Y = mean(wage) |> round(1),
+    `E[Y|D,X]` = mean(wage) |> round(1),
+    N = n(),
+    .by = c(education, ethnicity)
+  ) |>
+  mutate(
+    `f(X|D)` = (N / n()) |> round(3),
+    .by = ethnicity
+  ) |>
+  distinct(
+    `E[Y|D,X]`,
+    E_Y,
+    `f(X|D)`,
+    ethnicity,
+    education,
+    Omega
+  ) |>
+  arrange(
+    education,
+    ethnicity
+  ) |>
+  mutate(
+    目標割合 = (Omega * `f(X|D)`) |> round(3)
+  )
+
+Temp |>
+  select(-E_Y) |>
+  tinytable::tt()
+```
+
+## モデルの定式化
+
+- 一般に分布をどこまでバランスさせれば十分なのか、よくわからない
+
+  - 変数選択を活用しつつ、$X$ の二乗項と交差項までをバランスさせる
+
+
+  
+## 母集団への含意
+
+- データ上でのOLSの推定結果は、「PopulationにおけるOLSによる平均値のバランス後の比較」の優れた推定値とみなせる
+
+    - OLSは母集団におけるOLSの優れた推定値であり、信頼区間も計算できる
+    
+    - 事例数が、(組み合わせではなく) $X$ の数に比べて、十分に多いことが前提
+        
+      - より多くの特徴をバランスさせようとすると、推定精度が悪化する
+
+
+## まとめ
+
+- OLSは、$X$ の分布の特徴を**バランス**する
+
+- トレードオフ
+
+  - より多くの特徴をバランスしようとすると、
+
+  - 推定精度が悪化する
+
+- 元々の$X$が多い場合、機械学習による変数選択の併用が有効 (次章)
+
+# Reference

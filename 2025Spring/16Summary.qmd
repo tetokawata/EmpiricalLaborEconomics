@@ -1,0 +1,353 @@
+---
+title: "Summary"
+author:
+  - name: 川田恵介
+date: now
+format:
+  revealjs:
+    incremental: true 
+    slide-number: true
+    bibliographystyle: apa
+    html-math-method: katex
+    chalkboard: true
+  typst:
+    fig-format: retina
+    bibliographystyle: apa
+    mainfont: "Hiragino Mincho ProN"
+    number-sections: true
+bibliography: "ref.bib"
+execute: 
+  echo: false
+  warning: false
+  message: false
+---
+
+
+
+# 復習
+
+## 実証研究: Naiveなイメージ
+
+```{mermaid}
+flowchart TB
+  Q["研究課題"]
+  Est["統計モデルを推定: OLS,最尤法,ベイズ法など"]
+  Result["推定結果"]
+  Q --> Est --> Result
+```
+
+## イメージ図: 本講義
+
+```{mermaid}
+flowchart TB
+  Causal["因果効果"]
+  Dif["比較"]
+  Target["推定対象"]
+  Est["統計モデルを推定: OLS,最尤法,ベイズ法など"]
+  Result["推定結果"]
+  Causal -->|"識別"| Target
+  Dif --> Target --> Est --> Result
+```
+
+# 比較研究
+
+## 研究目標
+
+- $D$ 間で、$Y$ の分布 (典型的には平均値) を比較する
+
+  - 適宜、$X$ の分布の乖離を調整する
+
+- 例: 2019年と2025年 $(=D)$ で、同じような働き方 $(=X)$ をしている場合、平均賃金 $(=Y)$ はどの程度異なるか?
+
+## 推定目標
+
+- $E[Y\mid D=1,X]-E[Y\mid D=0,X]$ の平均値
+
+## 推定方法
+
+- 重回帰 (Slide04), Entropy balance (Slide05)
+
+  - 平均値を計算する際の荷重が異なる
+  
+# 因果効果
+
+## 研究目標
+
+- $D$ が $Y$ の分布 (典型的には平均値) に与える効果
+
+- 例: 技能訓練 $(=D)$ が、平均賃金 $(=Y)$ に与える効果
+
+## 推定目標
+
+- どのような推定目標が因果効果と解釈できるのか、慎重に議論する必要がある
+
+  - 識別
+
+## 主要な識別の仮定
+
+- $D$ がランダムに決まっている (RCT/自然実験): $$推定目標 =E[Y\mid D=1] - E[Y\mid D= 0]$$
+
+- $X$ 内で、$D$ がランダムに決まっている (Conditional independence): $$推定目標 =E[Y\mid D=1,X] - E[Y\mid D= 0,X] の平均値$$
+
+  - 類似: Panel data $+$ Pallarel trend (Slide12/13)
+
+## 主要な識別の仮定
+
+- $D$ が、$X$ の閾値 $\bar{X}$ で急激に変化する (RD): $推定目標=$ $$\lim_{\epsilon\rightarrow 0} E[Y\mid X+\epsilon=\bar{X}] - E[Y\mid X-\epsilon=\bar{X}]$$
+
+- 適切な操作変数 $(Z)$ が存在する (IV): 推定目標 $$=\frac{E[Y\mid Z=1,X] - E[Y\mid Z= 0,X]}{E[D\mid Z=1,X] - E[D\mid Z=0,X]}$$ の平均値
+
+
+## 推定方法
+
+- RCT/自然実験/Conditional independence: 重回帰 (Slide04), Entropy balance (Slide05)
+
+- RD: Local regression with/without IV (Slide09/10)
+
+- IV: Two-stage least square (Slide10/11)
+
+# 経済モデルの役割
+
+## 結果の解釈
+
+- 推定結果同士やデータから観察できない概念(社会厚生など)の接着剤として有力
+
+    - @mahoney2022principles , @donaldson2022blending
+
+## 例: Monopsony
+
+- 労働市場における需要独占 (企業間の労働者獲得競争が緩く、労働者に低賃金を押し付けられる)についての研究
+
+- @dube2020monopsony : 提示賃金 $D$ と 応募者数 $Y$ に与える因果効果を推定
+
+    - 職務内容はバランスさせる
+
+- @okudaira2019minimum : 最低賃金 $D$ が雇用 $Y$ に与える因果効果を推定
+
+    - 労働の限界収入に応じた異質性分析
+
+- 一見すると $Y$ も $D$ も異なる全く別の研究に見えるが、同じMonopsonyを検証する分析だと解釈できる
+
+## 例: Monopsony
+
+- Monopsonyが発生しているのであれば、
+
+    - 提示賃金を引き上げても、応募者数はあまり減らない
+
+        - @dube2020monopsony が(米国のオンライン労働市場で)確認
+    
+    - 労働の限界収入と賃金が乖離する $\&$ 最低賃金の引き上げは、雇用を減らさない
+    
+        - @okudaira2019minimum が(日本において)確認
+
+## 例: Monopsony
+
+- Future research として、応募者があまり減らない市場で、最低賃金は雇用をより増やすのか?
+    
+    - 賃上げ政策について、含意
+
+# 他の研究目標: 予測研究
+
+## 予測研究
+
+- 近年、予測モデルの実務への活用が進む
+
+    - 特に機械学習 (AI) の活用が進む
+    
+    - 労働研究においても、多くの関心を集める [@angrist2022machine]
+    
+- 観察できる情報 $X$ から、欠損情報 $Y$ を予測する
+
+- 関心がある方は、後期を受講してください
+
+
+# 他の研究目標: 経済モデル
+
+## 構造推定
+
+- 経済理論から導かれた統計モデルを直接推定
+
+    - 構造推定
+    
+- 前提となる経済理論や推定上の仮定に結果が依存するが、議論の射程が広い
+
+- 興味がある人は、以下から始めるとわかりやすい
+
+    - [Note by Kohei Kawaguchi](https://kohei-kawaguchi.github.io/EmpiricalIO/index.html)
+
+## イメージ図: 経済モデル
+
+```{mermaid}
+flowchart TB
+  Structure["Policy question"]
+  Target["推定対象: 経済構造(モデル)"]
+  Est["統計モデルを推定: 最尤法,ベイズ法など"]
+  Result["推定結果"]
+  Implication["解釈"]
+  Structure -->|"識別"| Target --> Est --> Result --> Implication
+```
+
+## 例: @kaji2023adversarial (Chap 3.2.)
+
+- Roy model (with 敵対学習による推定)
+
+    - [方法論の紹介記事](https://www.chicagobooth.edu/review/can-automated-art-forgers-become-economists)
+
+- 目的: 特定の産業への賃金補助などが、労働市場に与える影響を推定
+
+- モデル: ２期間２産業Roy model
+
+    - 各期に就業する産業を選択
+
+    - 完全予見
+    
+    - 産業特殊的人的資本
+
+## 例: Roy model
+
+- 1期目の産業 $s$ における労働者 $i$ の賃金 $$w_{i1s}=\mu_{s} +\epsilon_{i1s}$$
+
+- 2期目の産業 $s$ における労働者 $i$ の賃金 $$w_{i1s}=\mu_{s} + \gamma_{s}\underbrace{\mathbb{1}\{d_{i1}=s\}}_{1期目に産業sで就業していれば1} + \epsilon_{i2s}$$
+
+- $d_{i1}/d_{i2}=$ 1/2期目に就業する産業
+
+- $\epsilon$ は同時正規分布に従う
+
+## 例: (Economic) Decision making
+
+- 2期目: 賃金が高い方で働く $$d_{i2}=1\iff w_{i21}\ge w_{i22}$$
+
+- 1期目: 2期目の賃金に与える影響も考えて、生涯所得最大化 $$d_{i1}=1$$ $$\iff w_{i11} + \beta E[w_{i2}|d_{i1}=1]$$ $$\ge w_{i12} + \beta E[w_{i2}|d_{i1}=2]$$
+
+## 例: Estimation
+
+- 以上のモデルを前提にすれば、データの分布 $\{w_{i1},w_{i2},d_{i1},d_{i2}\}$ は、有限個のパラメタで完全に記述できる
+
+    - Parametric model
+    
+- 原理的には最尤法、ベイズ法などで推定できる
+
+    - 他にも[Method of simulated moments](https://en.wikipedia.org/wiki/Method_of_simulated_moments)や敵対学習 [@kaji2023adversarial] の活用も提案されている
+    
+- Counterfactual simulationとして、たとえば産業$1$ への補助金 ( $\mu_1$ の増加)が賃金や労働分布に与える影響を算出できる
+
+# 他の研究目標: 格差
+
+## 格差研究
+
+
+- $D$ 間で、本来的に許容す**べき**ではない差を推定する
+
+- 因果効果と異なり、多くの実証研究で用いらる枠組みを(川田は)知らない
+
+    - 因果推論とは、質的に異なる難しさ(規範命題)がある
+    
+    - 本スライドは、格差を因果的には定義しにくいという主張[@rose2023constructivist;  @jackson2018decomposition] に従う
+
+## 規範命題
+
+- 格差 (差別、不平等) $:=$ 観察された差が格差であるかどうかは
+
+    - 「である」 (事実命題) ではなく、「べき」 (規範命題)
+
+- 客観的事実から、規範を導くことには、慎重であるべき(できない?)
+
+    - [ヒュームの法則](https://ja.wikipedia.org/wiki/%E3%83%92%E3%83%A5%E3%83%BC%E3%83%A0%E3%81%AE%E6%B3%95%E5%89%87)
+
+## 例. 地域間格差
+
+- 東京都で生まれたか、香川県で生まれたかで
+
+    - ３０歳時点での実質所得に差がある
+    
+        - 機会の不平等?
+        
+    - [おいり](https://ja.wikipedia.org/wiki/%E3%81%8A%E3%81%84%E3%82%8A) の消費量に差がある
+    
+        - 食文化の多様性?
+
+## $X =$ 格差の定義
+
+- $X=$ 研究関心となる格差/差別/不平等を定義する変数 
+
+    - 価値判断へのコミット
+
+    - ある$X$内で差がなければ、研究課題となっている格差/差別/不平等はないと**定義する**
+
+## 例: 世代間の格差移転
+
+- $$D=\{1 (両親とも高校卒以下), 0 (どちらかは大学卒) \}$$
+
+- 思考実験: $E[Y|D=1] - E[Y|D=0]=0$ であれば格差はない?
+
+    - 社会全体で進学率が上昇する中で、年齢が若い世代は、親の学歴は高い傾向
+    
+        - 年功賃金の下で、賃金は低い傾向
+        
+        - 「年齢が高いと、両親の学歴が低く、賃金が高い」だけでは？
+
+## 例: コホート内格差
+
+- $X=生まれ年$ をバランスさせた方が妥当?
+
+- 思考実験: $$E[Y|D=1,2000年] - E[Y|D=0,2000年]=0$$ であれば格差はない?
+
+- 同じ年に生まれたのに生じる差(Cohort 内格差)を格差と定義
+        
+## 例: コホート & 職業内格差
+
+- $X=\{生まれ年、仕事内容\}$ の方が妥当?
+
+    - 仕事内容まで揃えると、推定される格差は非常に小さくなるかもしれない
+    
+    - "職業分断"という格差を"伝導する"経路を潰している?
+
+## 格差の定義
+
+- 因果推論 (教育への介入が、次の世代に与える因果効果を明らかにしたい)のであれば、祖父母の学歴はコントロールすべき
+
+    - ある世代へランダムに介入するのであれば、その上の世代の特徴はバランスしているはず
+
+- "先祖代々"から続く格差 (教育に熱心な"家系"かどうか)に関心があり、親の学歴をその代理変数とするのであれば、コントロールすべきではない
+
+## 他の例: @rose2023constructivist
+
+- 司法現場における格差研究: "人種"間で量刑に差があるか?
+
+- スピード違反が対象
+
+    - 研究課題が「警察官が差別意識を持っているかどうか」であれば、違反速度はコントロールすべき
+    
+    - 「違法行為(と認定される)を犯す可能性についての格差」であれば、コントロールすべきではない
+    
+        - あるSocial cateogryは、違法行為を犯さざるを得ない状況に追い込まれているかもしれない
+
+## イメージ図: 格差研究
+
+```{mermaid}
+flowchart TB
+  Structure["研究対象とする格差"]
+  Target["推定対象: ならかの差"]
+  Est["統計モデルを推定: OLSなど"]
+  Result["推定結果"]
+  Implication["解釈"]
+  Structure -->|"規範的判断"| Target --> Est --> Result --> Implication
+```
+
+
+## まとめ
+
+- 因果推論でも格差推定でも、Estimandの定義をデータのみで行うのは困難
+
+    - 現状、変数の定義を確認し、背景知識を用いながら、人間が判断するしかない
+
+        - 因果と格差で、判断の根拠が大きく異なる
+    
+- どちらも、最終的には比較分析が必要なケースが多い
+
+    - OLSも有力な方法だが、それを補完/代替する優れた手法が多く開発されている
+    
+        - 因果と格差で、同じ手法が活用できる
+
+
+## Reference

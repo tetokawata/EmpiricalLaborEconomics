@@ -1,0 +1,349 @@
+---
+title: "Causal Inference"
+subtitle: "労働経済学 1"
+author: "川田恵介"
+format:
+  revealjs:
+    incremental: true 
+    slide-number: true
+    bibliographystyle: apa
+    html-math-method: katex
+    chalkboard: true
+  typst:
+    fig-format: retina
+    bibliographystyle: apa
+    mainfont: "Hiragino Mincho ProN"
+    number-sections: true
+bibliography: "ref.bib"
+execute:
+  warning: false
+  message: false
+  echo: false
+---
+
+
+```{r, dev='ragg_png'}
+library(tidyverse)
+
+data(CPS1985, package = "AER")
+```
+
+# Structure VS Description
+
+## 実証研究の工程
+
+- (社会における)研究目標 
+
+  - $\rightarrow$ (母集団における)推定目標 
+  
+  - $\rightarrow$ (データから計算する)推定値
+
+- ここまでの議論は、「推定目標 $\rightarrow$ 推定値」が対象
+
+  - ここからは、「研究目標  $\rightarrow$ 推定目標」を議論
+
+## 研究目標
+
+- [Models, Measurement, and the Language of Empirical Economics (Phil Haile)](https://sites.google.com/view/philhaile/home/teaching?authuser=0) に従い研究目標を、大きく２種類に分類する
+
+  - **Descriptive work:** データから観察可能な変数の社会における関係性を記述する
+  
+    - 例: 去年と今年で、賃金の平均値はどのくらい変化したのか?: Year $\iff$ Wage
+  
+  - **Structural work:** 観察可能な変数の"背後"にある社会の仕組み(Structure)を推論する
+  
+    - 含む因果推論/経済を用いた構造推定
+
+## Descriptive work
+
+- 観察可能な変数に関する議論なので、研究関心となる社会 $\simeq$ 母集団であれば、
+
+  - 社会における関係性 $\underbrace{\simeq}_{\textit{Random Sampling}}$ 母集団における関係性
+  
+    - $\underbrace{\simeq}_{十分な事例数}$ データを用いた統計的推論が可能 
+
+- Random Sampling: 「社会 $\simeq$ 母集団」を担保するために、**データ**が関心のある社会からランダムに抽出されていると仮定する
+
+## Structural work
+
+- **研究目標:** (広い意味での)社会構造(仕組み/Data Generation Process)の特徴把握
+
+  - 母集団の背後に、母集団を生み出す(観察できない)社会の"構造"があると想定
+
+  - 多くの場合、構造は、データから観察できない要素も用いて定義される
+  
+    - 因果効果も"構造"から定義される
+
+- **推定目標:** 関心となる社会構造の特徴と母集団の特徴の関連性を示す必要がある
+
+  - 識別の義論
+
+## Structural model
+
+- 識別を議論するために、**構造モデル** (構造を議論する言語 $+$ 構造についての仮定)を導入
+
+  - 観察不可能な要因と観察可能な変数を紐づける
+
+## 因果効果
+
+- あるaction(政策/介入等々)が与える影響
+
+- 政策(広義にはaction)への含意を得たい労働経済学において大きな関心
+
+  - 定義/識別を議論する有力な構造モデルが複数存在
+
+  - 潜在結果や構造的因果モデル [Chap 2, 4-7 in CausalML](https://causalml-book.org/)、"経済理論" [@heckman2024econometric] 、頑健性 [@peters2016causal] などなど
+
+    - [不毛(?)な"学派"論争も散見される](https://muse.jhu.edu/issue/48885)が、共通点が多い [@goldberg2019book ; @vytlacil2002independence ; @richardson2013single; @imbens2020potential]。
+
+- 以下では、潜在結果モデルを採用
+
+## 例: 留学の因果効果
+
+- 例: 1年次の短期留学は、2年次以降の長期留学を因果的に促進するのか?
+
+  - 短期留学"義務化"の長期留学促進効果
+  
+    - 教育政策や大学経営を考える上で、重要な指数(かも？)
+
+- データ: 長期/短期の留学経験 $(Y/D)$
+
+## 例: データ
+
+```{r}
+library(tidyverse)
+tibble(
+  `Y (長期留学)` = c(0,1,0,1),
+  `D (短期留学)` = c(0,0,1,1),
+  N = c(7000,3000,5000,5000)
+) |> 
+  tinytable::tt()
+```
+
+- $\Pr[Y=1\mid D=1]-\Pr[Y=1\mid D=0]\simeq 0.5-0.3=0.2$
+
+## 例: 推定問題
+
+- データ $\iff$ 母分布
+
+  - 事例数は十分に大きいので、データ上の分布 $\simeq$ 母分布が期待できる
+
+    - 信頼区間も計算可能
+  
+
+## 潜在結果モデル
+
+- 母分布 $\iff$ 因果効果
+
+- $d: \{$ 1 (１年生時点でプログラムに参加), 0 (非参加) $\}$
+
+  - $y_i(d):$ 参加/非参加の場合の、$i$ さんのTOEICの点数
+  
+- 留学の(個別)因果効果 $: \tau_i= y_i(1) - y_i(0)$ 
+
+## 観察可能な変数との関係性
+
+- $\{現実に留学に行ったかどうか (D_i),現実の点数 (Y_i) \}$
+
+- $Y_i=D_i\times y_i(1) + (1 - D_i)\times y_i(0)$
+  
+  - $D_i=1$ ならば $Y_i=y_i(1)$
+    
+  - $D_i=0$ ならば $Y_i=y_i(0)$
+
+- 注: 小文字はデータから観察できない変数/大文字は観察できる変数
+
+- **根本問題:** $y_i(1)$ と $y_i(0)$ を同時に観察できないため、個別因果効果 $\tau_i$ は観察できない
+
+## 観察可能な分布との関係性
+
+- $E[Y_i\mid D_i=1] - E[Y_i\mid D_i=0]$
+
+- $=E[y_i(1)\mid D_i=1] - E[y_i(0)\mid D_i = 0]$
+
+- $$=\underbrace{E[y_i(1)\mid D_i=0] - E[y_i(0)\mid D_i = 0]}_{=E[\tau_i\mid D_i=0] (非留学グループにおける平均効果)}$$ $$+\underbrace{E[y_i(1)\mid D_i=1] - E[y_i(1)\mid D_i=0]}_{=Selection (留学したとしても残る格差)}$$
+
+## 識別問題
+
+- 平均差を"説明する"構造は無数に存在
+
+- $$\underbrace{E[Y_i\mid D_i=1] - E[Y_i\mid D_i=0]}_{=0.2}=\underbrace{E[\tau_i\mid D_i=0]}_{-0.6}$$ $$+\underbrace{E[y_i(1)\mid D_i=1] - E[y_i(1)\mid D_i=0]}_{=0.8}$$
+
+-  短期留学の平均効果は負だが、強力なSelectionによって正の効果がもたらされている
+
+## Unidentified
+
+- 異なる構造
+
+- $$\underbrace{E[Y_i\mid D_i=1] - E[Y_i\mid D_i=0]}_{=0.1}=\underbrace{E[\tau_i\mid D_i=0]}_{0.1}$$ $$+\underbrace{E[y_i(1)\mid D_i=1] - E[y_i(1)\mid D_i=0]}_{=0.1}$$
+
+- 短期留学の効果は、Selectionによって下駄をはかされている
+
+## Identification by mean independence
+
+- $$\underbrace{E[Y_i\mid D_i=1] - E[Y_i\mid D_i=0]}_{=0.2}=\underbrace{E[\tau_i\mid D_i=0]}_{0.2}$$ $$+\underbrace{E[y_i(1)\mid D_i=1] - E[y_i(1)\mid D_i=0]}_{=0\textit{ (Assumption: Mean independence)}}$$
+
+- Mean independence の正当化の例: データ上で $D$ は
+
+  - **Randommized Control Trial**/理想的な自然実験 の結果として決まっている
+
+## 補論: Positive selection
+
+- $D$ は、各学生の選択 ($\neq$ RCT)の結果として決まっているが、長期留学に関心がある人が短期留学にも参加している (Positive selection)と仮定
+
+- $$\underbrace{E[Y_i\mid D_i=1] - E[Y_i\mid D_i=0]}_{=0.2}=\underbrace{E[\tau_i\mid D_i=0]}_{\le 0.2}$$ $$+\underbrace{E[y_i(1)\mid D_i=1] - E[y_i(1)\mid D_i=0]}_{\ge 0\textit{ (Positive Selection)}}$$
+
+- 因果効果の上限 (0.2) が識別できる
+
+## まとめ
+
+- 社会の構造の推定
+
+  - データ $+$ 推定についての仮定 $+$ **識別に関する仮定**
+  
+    - Mean independence $=$ **識別に関する仮定**
+
+## 発展
+
+- 先の潜在結果は、自身への介入のみに自身の結果は依存すると仮定している
+
+  - より一般には、$y_i(d_1,..,d_N)$
+  
+    - SUTVA/No intereferenceの仮定 $y_i(d_1,..,d_N)=y_i(d_i)$
+    
+      - 多くの労働経済学の応用で、実際には成立していないが、未解決な部分が大きい
+      
+- @savje2024causal ; @munro2021treatment
+
+# RCT
+
+## 理想的な実験: Controlled Experiment
+
+- 背景属性が全く同じ被験者を2名以上用意して、一部にのみ介入 $D=1$ を行う
+
+    - 例: 食塩を入れると、水の沸騰温度は上がるのか？
+
+- 労働経済学においては実現不可能
+
+    - "全く同じ"人間とは?
+    
+## 代替案: Randomized Controlled Trial
+
+- 無限の被験者が存在し、被験者間相互作用がない環境において、 各被験者の $D$ をランダムに決める
+
+    - データから観察可能/不可能な背景属性と"無関係"に$D$は決定
+    
+      - 背景属性の分布が$D$間で完璧にバランス
+    
+    - $Y$ の分布に差があれば、 $D$ の違いによってもたらされたと解釈する"しかない"状況に持ち込める
+    
+- 労働経済学の研究関心と親和的
+    
+## 実行可能な実験
+
+- 有限の被験者に対して、$D$ をランダムに割り振る
+
+    - 背景属性は"偶然"偏るが、その偏りは信頼区間で評価できる
+
+## Example: Resume Experiment
+
+- 履歴書の名前は、採用確率に影響を与えるのか?
+
+    - Raceが"伝わる"ことの因果効果を推定
+    
+        - 労働市場における差別の影響へ含意
+
+## Example. Resume Experiment
+
+- @bertrand2004emily
+
+- 求人に”偽の”履歴書を送り、返信があるかどうかを測定
+
+    - $D=$ 履歴書の内容: 特にCaucasian/African-American 系の名前かどうか
+    
+    - $Y=$ Callbackがあるかどうか
+    
+    - $X=$ 企業の属性、他の履歴書属性
+
+- AER packageにデータが収録
+
+## Example
+
+```{r}
+library(tidyverse)
+
+data("ResumeNames", package = "AER")
+
+Data = ResumeNames |> 
+  mutate(
+    D = case_when(
+        ethnicity == "afam" ~ 1,
+        ethnicity == "cauc" ~ 0
+    ),
+    Y = case_when(
+        call == "yes" ~ 1,
+        call == "no" ~ 0
+    ))
+```
+
+```{r}
+#| echo: true
+estimatr::lm_robust(Y ~ D, 
+   Data)
+```
+
+## $X$ の選択への含意
+
+- 推定精度の改善 (信頼区間の縮小)に活用できる
+
+- 無限大の事例数を用いたRCTをどうすれば、模倣できるのか?
+
+    - $D$間で差異が生じない変数は $X$ に含める
+    
+    - 差異が生じる変数は含めない
+    
+        - 含めるとRCTの模倣ができなくなる
+        
+            - Bad Controll
+
+## 例
+
+- １年次に短期留学に行くかどうか $(D)$
+
+- $Y=$ 3年次以降に長期留学に行くかどうか
+
+- 観察できない$X=$ 入学時点での留学への関心
+
+- $M=$ 2年次に上級英会話コースを受講するかどうか?
+
+## 例
+
+- **自己選択:** $D$ を学生が選択する場合、$X$の分布に差が生じる
+
+  - $D=1$ において、留学への関心が高い学生が多い
+  
+- **RCT:** $D$ をランダムに決める場合、母集団において、$X$ の分布に差はない
+
+  - $M$ の分布には差が出る可能性
+  
+## 例
+
+- RCTにおいて、$M$ をバランスされると、$X$ がバランスしなくなる!!!
+
+- $M=$ 上級英会話コースの受講者にデータを限定すると、
+
+  - $D=1$: 短期留学に行き、上級英会話受講者 VS
+  
+  - $D=0$: 留学にってないにも関わらず、上級英会話受講者
+  
+    - $X$ 留学への関心がより高い学生が多い可能性大
+
+## まとめ
+
+- RCT: 観察できない背景属性も含めて、$D$間で背景属性をバランスするツール
+
+  - RCTが実際に行われたことを知っていれば、因果推論の根本問題は大きく改善できる
+  
+    - ただしSUTVA/No interferenceを仮定していることに注意
+
+## Reference

@@ -1,0 +1,366 @@
+---
+title: "Statistical Inference"
+subtitle: "労働経済学 1"
+author: "川田恵介"
+format:
+  revealjs:
+    incremental: true 
+    slide-number: true
+    bibliographystyle: apa
+    html-math-method: katex
+    chalkboard: true
+  typst:
+    fig-format: retina
+    bibliographystyle: apa
+    mainfont: "Hiragino Mincho ProN"
+    number-sections: true
+bibliography: "ref.bib"
+execute:
+  warning: false
+  message: false
+  echo: false
+---
+
+
+```{r, dev='ragg_png'}
+library(tidyverse)
+
+data(CPS1985, package = "AER")
+```
+
+# Inference
+
+## Statistical inference
+
+- **母集団**の特徴について、**推論(Inference)**する
+
+  - $\{$データの特徴 $+$ 仮定$\}\Rightarrow$ 何らかの**結論**
+  
+    - Inductively(帰納的) Validを通常要求する
+    
+    - $\iff$ (計量)経済/統計理論は、Deductively(演繹的) Validを要求
+
+- 注: 次回からCausal inference (因果効果ついての推論)を紹介
+
+## Inference
+
+- 推論 $=$ 前提 (データ/仮定等々) $\Rightarrow$ 帰結
+
+  - 難しいので、(Inductively/Deductively) Valid Inferenceを核とした、論点整理を行う
+  
+- Valid Inference: 前提が正しい(真)であれば、結論は正しい
+  
+    - 真の保存 (truth-preserving)
+    
+- 前提/結論の検討 $\iff$ Valid Inference
+
+## 例: Deductively Valid
+
+- 完全競争市場の仮定を満たす $\Rightarrow$ 厚生経済学の第1/2命題
+
+- 大学教員がAという主張を行っている $\nRightarrow$  Aは正しい
+  
+  - 権威論証の誤謬(truth-preservingが満たされない有名な例)
+
+## Valid Inferenceの有用性
+
+- Validであることを前提に、実践で"有用な"推論が重宝される
+
+  - 前提への要求: 明確/幅広い状況に対応
+  
+  - 結論への要求: 自明ではなく、役にたつ
+
+## 例え話
+
+- Inference $=$ "関数"
+
+```{r}
+#| echo: true
+#| eval: false
+
+結論 <- f(前提)
+```
+
+- Invaild: 関数が設計通りの機能をしない $=$ "バグ"
+
+## データ分析への応用
+
+- 前提: ランダムサンプリングであり、事例数が**無限大**のデータが手元にあり、そこから計算した平均賃金は20万円
+  
+  - 結論: 母平均は必ず20万円
+  
+    -　一致性
+
+- Validだが、無限大の事例数をもつデータは存在しないので、応用においては有用ではない
+
+# 信頼区間
+
+## Inductively Valid
+
+- Deductively(演繹的) Validは、かなり要求が厳しく、社会分析においては、前提をかなり狭めないと、自明ではない結論を得にくい
+
+- 「前提が正しい(真)であれば、結論は**概ね**正しい」に緩和する
+  
+  - Inductively(帰納的) Valid ([Logical methods for AI 参照](https://logicalmethods.ai/))
+  
+- **概ね**の度合いは色々ある
+
+  - 定義も色々ある (**頻度論**/ベイズ)
+
+## 信頼区間
+
+- 中心極限定理より、独立した研究者群が計算する平均値の推定値の分布は、正規分布に収束することを利用した統計的推論
+
+  - 前提: 「ランダムサンプリングかつ事例数が十分に大きいデータ」から計算した**99.5 $\%$** 信頼区間は [18万円,22万円]
+  
+  - 結論: 母平均は、概ね[18万円,22万円]の間
+
+- 99.5 $\%$ の部分は、研究者が変更可能
+
+## イメージ: 200事例
+
+```{r, dev='ragg_png'}
+N <- 200
+
+map_dfr(
+  1:50,
+  function(i) {
+    set.seed(i)
+    tibble(
+      Y = c(sample(0:1, N, replace = TRUE)),
+      X = c(sample(0:1, N, replace = TRUE))
+    ) |>
+      fixest::feols(
+        Y ~ X
+      ) |>
+      magrittr::extract2("coeftable") |>
+      as_tibble(rownames = "X") |>
+      filter(
+        X == "X"
+      ) |>
+      mutate(
+        ID = i
+      )
+  }
+) |>
+  ggplot(
+    aes(
+      y = ID,
+      x = Estimate
+    )
+  ) +
+  geom_vline(
+    aes(
+      color = "Population OLS",
+      xintercept = 0
+    )
+  ) +
+  geom_point(
+    aes(
+      color = "OLS"
+    )
+  ) +
+  theme_minimal() +
+  xlim(-0.5, 0.5) +
+  xlab("推定値") +
+  ylab("研究者番号")
+```
+
+- 研究者によって、収集したデータが異なるので、推定値が異なる
+
+## イメージ: 95 $\%$ 信頼区間
+
+```{r, dev='ragg_png'}
+N <- 200
+
+map_dfr(
+  1:80,
+  function(i) {
+    set.seed(i)
+    tibble(
+      Y = c(sample(0:1, N, replace = TRUE)),
+      X = c(sample(0:1, N, replace = TRUE))
+    ) |>
+      fixest::feols(
+        Y ~ X
+      ) |>
+      magrittr::extract2("coeftable") |>
+      as_tibble(rownames = "X") |>
+      filter(
+        X == "X"
+      ) |>
+      mutate(
+        ID = i
+      )
+  }
+) |>
+  mutate(
+    Error = if_else(
+      Estimate - 1.96 * `Std. Error` > 0 |
+        Estimate + 1.96 * `Std. Error` < 0,
+      "Error",
+      "OK"
+    )
+  ) |>
+  ggplot(
+    aes(
+      y = ID,
+      x = Estimate,
+      xmin = Estimate - 1.96 * `Std. Error`,
+      xmax = Estimate + 1.96 * `Std. Error`
+    )
+  ) +
+  geom_vline(
+    aes(
+      color = "Population OLS",
+      xintercept = 0
+    )
+  ) +
+  geom_pointrange(
+    aes(
+      color = Error
+    )
+  ) +
+  theme_minimal() +
+  xlim(-0.5, 0.5) +
+  xlab("推定値")
+```
+
+- 研究者の内 $95\%$ が、推定対象を含む信頼区間を得る
+
+  - 大体正しい
+
+## イメージ: 2000事例
+
+```{r, dev='ragg_png'}
+N <- 2000
+
+map_dfr(
+  1:80,
+  function(i) {
+    set.seed(i)
+    tibble(
+      Y = c(sample(0:1, N, replace = TRUE)),
+      X = c(sample(0:1, N, replace = TRUE))
+    ) |>
+      fixest::feols(
+        Y ~ X
+      ) |>
+      magrittr::extract2("coeftable") |>
+      as_tibble(rownames = "X") |>
+      filter(
+        X == "X"
+      ) |>
+      mutate(
+        ID = i
+      )
+  }
+) |>
+  mutate(
+    Error = if_else(
+      Estimate - 1.96 * `Std. Error` > 0 |
+        Estimate + 1.96 * `Std. Error` < 0,
+      "Error",
+      "OK"
+    )
+  ) |>
+  ggplot(
+    aes(
+      y = ID,
+      x = Estimate,
+      xmin = Estimate - 1.96 * `Std. Error`,
+      xmax = Estimate + 1.96 * `Std. Error`
+    )
+  ) +
+  geom_vline(
+    aes(
+      color = "Population OLS",
+      xintercept = 0
+    )
+  ) +
+  geom_pointrange(
+    aes(
+      color = Error
+    )
+  ) +
+  theme_minimal() +
+  xlim(-0.5, 0.5) +
+  xlab("推定値")
+```
+
+- 研究者の内 $95\%$ が、推定対象を含む信頼区間を得る
+
+  - 信頼区間が狭くなる
+
+## 概ね正しいの分解
+
+- 信頼水準 $+$ 信頼区間の"信頼性"
+
+- 信頼水準: 信頼区間が母平均を含む仮想的な研究者の割合
+
+  - 高めに設定すれば、「信頼区間が母平均を含む」という結論が、多くの仮想的な研究者に当てはまり、より強くなる
+  
+  - 信頼水準を100 $\%$ に設定できない
+
+    - 信頼区間が無限大になる
+
+## 概ね正しいの分解
+
+- 信頼区間の"信頼性": あくまで近似的に正規分布に従う
+
+  - サンプルサイズが少ないと、近似の精度が悪い
+
+  - 99.99 $\%$ 信頼区間であったとしても、50サンプルで計算したのであれば、あまり信頼できない
+
+## OLSやEntropy weightへの適用
+
+- 重回帰やEntroy matchingなどにも拡張可能
+
+  - 推定された係数値について、中心極限定理に基づく、信頼区間の近似計算が可能
+
+- OLS
+
+```{r}
+#| echo: true
+
+data("CPS1985", package = "AER")
+
+estimatr::lm_robust(
+  wage ~ gender + education, # educationの平均値をバランス
+  CPS1985,
+  alpha = 0.05 # 95%CI
+)
+```
+
+## OLSやEntropy weightへの適用
+
+- Entropy
+
+```{r}
+WeightBalance <- WeightIt::weightit(
+  gender ~ education, # G ~ X
+  CPS1985, # Use DataClean
+  method = "ebal", # Define EntropyWeight
+  estimand = "ATE"
+) # Define estimand
+```
+
+## 実装
+
+```{r}
+#| echo: true
+
+WeightIt::lm_weightit(
+  wage ~ gender,
+  CPS1985,
+  WeightBalance,
+  vcov = "HC0"
+) |>
+  summary(
+    ci = TRUE,
+    level = 0.95 # 95%CI
+  )
+```
+
+
+## Reference

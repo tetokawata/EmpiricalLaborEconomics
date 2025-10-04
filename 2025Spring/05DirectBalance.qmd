@@ -1,0 +1,195 @@
+---
+title: "Linear Model for Comparison"
+author: "川田恵介"
+format:
+  typst:
+    fig-format: retina
+    mainfont: "Hiragino Mincho ProN"
+    number-sections: true
+  revealjs:
+    incremental: true 
+    slide-number: true
+    html-math-method: katex
+    embed-resources: true
+execute: 
+  warning: false
+  message: false
+  eval: true
+  echo: false
+bibliography: "ref.bib"
+bibliographystyle: harvard-cite-them-right
+---
+
+# OLSの問題点
+
+## 問題点一覧
+
+1. 元々の$X$が多い場合に、十分に複雑なモデルを推定すると、推定精度が犠牲になる
+
+2. 推定対象を定義する際に用いるOverlap weightの解釈が難しい
+
+3. 負のWeightが生じ、非常にミスリーディングな結果が生じうる [@chattopadhyay2023implied]
+
+  - 問題2と3が、本日の論点
+
+    
+## 例: "昔の出席簿"データ
+
+```{r}
+library(tidyverse)
+
+Temp <- tibble(
+  ID = seq(1, 6),
+  Gender = c(rep("男性", 3), rep("女性", 3)),
+  TestScore = c(60, 60, 60, 60, 60, 100)
+)
+
+Temp |>
+  gt::gt()
+```
+
+- 女性の平均点の方が高い
+
+- 出欠番号は、"男性"からあいうえお順
+    
+    - "成績と関係ない"
+      
+    - 男女間で"バランスさせよう"がない
+
+## 例: "昔の出席簿"データ
+
+```{r}
+#| echo: true
+lm(TestScore ~ Gender + ID,
+  data = Temp
+)
+```
+
+- IDをバランスさせると「男性の方が平均的が高くなる」
+
+    - どうやってバランスさせているのか？
+
+## 例: 問題点
+
+```{r}
+tibble(
+  ID = seq(1, 6),
+  Gender = c(rep("男性", 3), rep("女性", 3)),
+  TestScore = c(60, 60, 60, 60, 60, 100)
+) |>
+  mutate(
+    Target = lmw::lmw(
+      ~ Gender + ID,
+      data = pick(everything())
+    ) |>
+      magrittr::extract2("weights")
+  ) |>
+  mutate(
+    Target = Target / 3
+  ) |>
+  gt::gt()
+```
+
+- マイナスの割合を目標 にする(???)ことで、平均値を1.61に「バランス」させている
+
+## 例: 問題点
+
+```{r}
+Temp <- tibble(
+  ID = seq(1, 6),
+  Gender = c(rep("男性", 3), rep("女性", 3)),
+  TestScore = c(10, 60, 60, 60, 60, 100)
+)
+
+Temp |>
+  gt::gt()
+```
+
+- 一番(男性)の成績が悪かったとする
+
+## 例: 問題点
+
+- 出席番号をバランスさせると、男性の成績が悪くなっているのに、男性の平均点が女性よりもさらに高くなる(!!?)
+
+
+```{r}
+#| echo: true
+lm(TestScore ~ Gender + ID,
+  data = Temp
+)
+```
+
+
+# Direct balancing
+
+## Balancing weightの明示的な算出
+
+1. 目標とする割合 $h(X)$ を明示的に指定
+
+2. データ上の$X$の分布を$h(X)$と一致させるWeight$\omega(D,X)$を計算
+
+  - 非負に限定
+  
+  - 何らかの基準に基づいて、散らばり方を最小化する
+
+3. $\omega(D,X)$ を用いた平均差を計算する
+
+## 例: Entropy weight [@hainmueller2012entropy]
+
+- 以下を最小化する $$\omega(D,X)\times\log\omega(D,X) の平均値$$
+
+- ただし 
+
+  - $\omega(D,X)\ge 0$
+  
+  - $h(X)=\omega(d,X)\times f(X\mid D=d)$
+  
+## 代表的な目標割合
+
+- データや母集団全体での$X$の分布
+
+  - 因果推論では、Average Treatment Effectを計算する際に使用
+  
+- $D=1$ グループにおける $X$ の分布
+
+  - Average Treatment Effect on Treatedを計算する際に使用
+
+## 他の選択肢
+
+- CBPS [@imai2014covariate], optitmal weight [@zubizarreta2015stable] など
+    
+  - Entropy weightも含めて、[WeightIt](https://ngreifer.github.io/WeightIt/articles/estimating-effects.html) パッケージで容易に実装可能
+
+
+## 実装: WeightIt
+
+```{r}
+#| echo: true
+library(WeightIt)
+
+data("CPS1985", package = "AER")
+
+WeightBalance <- weightit(
+  married ~ education + age + ethnicity + gender, # G ~ X
+  CPS1985, # Use DataClean
+  method = "ebal", # Define EntropyWeight
+  estimand = "ATE"
+) # Define estimand
+```
+
+## 実装
+
+```{r}
+#| echo: true
+
+WeightIt::lm_weightit(
+  log(wage) ~ married,
+  CPS1985,
+  WeightBalance,
+  vcov = "HC0"
+) |>
+  summary()
+```
+
+
+# Reference

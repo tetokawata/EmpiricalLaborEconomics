@@ -1,0 +1,238 @@
+---
+title: "Conditional independence"
+subtitle: "労働経済学"
+author: "川田恵介"
+date: now
+format:
+  revealjs:
+    incremental: true 
+    slide-number: true
+    bibliographystyle: apa
+    html-math-method: katex
+    chalkboard: true
+  typst:
+    fig-format: retina
+    bibliographystyle: apa
+    mainfont: "Hiragino Mincho ProN"
+    number-sections: true
+bibliography: "ref.bib"
+execute: 
+  echo: false
+  warning: false
+  message: false
+  eval: true
+---
+
+# Selection on observable
+
+```{r}
+library(tidyverse)
+```
+
+## 基本アイディア
+
+- 統計的因果推論の基本的方針は、 Chance (偶然) を利用した因果効果の推論 [@imbens2022causality]
+
+  - RCTにおいては、$D$ は偶然(ランダム)決まる
+
+- 母集団全体で（自然）実験が発生している応用はまれ
+
+  - "局所的"に発生した自然実験を活用する
+
+## 局所的な実験
+
+- 多くの手法が発展
+
+- 本スライド:、**conditional independence**を仮定し、因果効果を**識別**し、慎重に推定する
+
+  - 推定については、Balanced comparisonの手法が活用できる
+
+    - Senstivity分析との併用を推奨
+
+  - 代替的な識別方法としては、操作変数、Regression Discontinuity等
+
+# 識別
+
+## 推定対象
+
+- Conditional Average Treatment Effect
+
+- $X$ 内での$D$の平均効果 $$\tau(x)=E[y_i(1) - y_i(0)\mid X_i=x]$$
+
+## 潜在結果モデル
+
+- $E[Y_i\mid D_i=1,x] - E[Y_i\mid D_i=0,x]$
+
+- $=E[y_i(1)\mid D_i=1,x] - E[y_i(0)\mid D_i = 0,x]$
+
+- $$=\underbrace{E[y_i(1)\mid D_i=0,x] - E[y_i(0)\mid D_i = 0,x]}_{=E[\tau_i\mid D_i=0,x]}$$ $$+\underbrace{E[y_i(1)\mid D_i=1,x] - E[y_i(1)\mid D_i=0,x]}_{=Selection}$$
+
+## 識別の仮定
+
+- Conditional independence: $$E[y_i(1)\mid D_i=1,x] = E[y_i(1)\mid D_i=0,x]$$
+
+  - $X$ が同じであれば、 $D$ はランダムに決まっている
+
+## 識別の仮定
+
+- Conditional independenceに加え、
+
+  - すべての$x,d$ について、 $0 < \Pr[d|X=x] < 1$ (Positivity)
+
+  - 他者の$d$に影響を受けない (No interference)
+
+## 違反例
+
+- $D=$ 「労働経済学」の講義への参加 $\rightarrow Y=$ 30歳時点での所得
+
+  - 受講できない研究科が存在: Positivity違反
+
+  - 勉強会などで非受講者にも講義内容を共有: No interference違反
+
+  - そもそもの興味関心など、データから観察しにくい要因に、受講するかどうかが依存: Conditional independence違反
+
+# 推定
+
+## 課題
+
+- 因果効果が識別できたとして、限られた事例数から、どのように推定するか?
+
+    - $X$のバランスを達成する必要がある
+
+- Balanced comparison (Slide07)の方法が使用可能
+
+## サブサンプル内での平均差
+
+- Conditional average treatment effect $\tau(X)$ が識別できたとしても、推定は容易ではない
+
+- 最もシンプルな推定方法は、$X$ 内での$Y$の$D$間での平均差
+
+## Subsample size問題
+
+- $X$ の数が多いと、サブサンプルサイズが小さくなり、推定精度が悪化する
+
+- 条件付き平均効果の"集計値"を推定する必要がある
+
+    - どのように集計するか、という問題が発生する
+
+## Average treatment effect
+
+- $\tau(X)$ の平均値を推定対象とする $$\tau=\sum_{X=x}\omega(x)\times \tau(x)$$
+
+- $\omega(x)=$ Weight
+
+## $\tau$の推定
+
+- 識別 $$\tau(x)=E[Y\mid D=1,x] - E[Y\mid D=0,x]$$ より
+
+- $$\tau=\sum_{X=x}\omega(x)\times [E[Y\mid D=1,x] - E[Y\mid D=0,x]]$$
+
+- バランス後の比較!!!
+
+  - 前回までの議論が活用できる
+
+## まとめ
+
+- コントロール変数で因果効果を識別するのであれば、 $X$ 内でRCTが行われている必要がある
+
+- 因果効果の異質性を想定する場合、OLSによる推定は、平均効果を推定できない
+
+    - $X$ をサンプル平均とバランスさせる方法を併用する必要がある
+
+# $X$ の選択
+
+## 変数選択
+
+- データに含まれる変数から、研究課題に必要な変数を選ぶ必要がある
+
+- 研究課題から、$Y/D$ は比較的容易に決まる
+
+  - $X$ の選択はより困難
+  
+  - 様々な補助ツール(概念)が存在する
+
+## Confounders
+
+- Conditional independence について、より踏み込んだ議論のために、概念 Confounders (交絡因子)を導入
+
+  - $D$ と $Y$ に影響を与える変数
+  
+    - $D$ についての理想的なRCTで差が**生じない変数**
+
+- 例: 経済学研究科の院生の方が参加しやすい
+
+    - 経済学研究科と他研究科の間で30歳時点での所得にも差異がある
+
+## 注意点: Bad Control
+
+- データの中には、バランスすべきではない変数も通常含まれている
+
+    - 理想的なRCTにおいても、$D$ 間で差異が生まれる変数 (Post-treatment $M$)
+
+- 例: $M=$ 修士論文の内容
+
+  - RCTにおいては、実験前に収集した変数はBad Controlではない
+  
+  - 非RCTデータでは、背景情報を用いて判断するしかない
+
+## イメージ
+
+```{dot}
+#| fig-width: 1
+digraph {
+    rankdir=LR;
+    node [shape = box];
+    X [label = "X"];
+    D [label = "D"];
+    Y [label = "Y"];
+    M [label = "M"]
+    X -> D,Y
+    D -> Y [label = "Causal Effect", color = "red"]
+    D -> M -> Y [color = "red"]
+    {rank = same; D,X,M}
+}
+```
+
+## まとめ
+
+- より発展的な議論は、 @vanderweele2019principles などを参照
+
+- 問題点: すべてのConfoundersをデータから観察できるとは限らない
+
+    - 観察できない(Unobservable) confoundersが存在
+    
+        - $X$ 内の比較は、因果効果と一致しない
+
+- Conditional independenceは、 Unobservable confoundersが存在しないことを仮定
+
+    - しばしば強すぎる仮定であり、代替案が提案されている
+
+# 応用例
+
+## @anger2017involuntary
+
+- 研究目標: 非自発的失業 $(D)$が、労働者の性格 $(Big Five Y)$ に与える因果効果
+
+  - 性格特性が人生の出来事によって変わる (心理学) VS 石膏のように固まる (経済学)
+  
+    - 私見: 本当?
+
+## 識別
+
+- 推定対象: 初期時点において失業していない労働者: $D=1$ 事業所閉鎖により失職, $D=0$ 就業継続
+
+  - 自発的失職を除外することで、背景属性をある程度の"バランス"している
+  
+  - $X=$ 初期時点での社会経済変数/就業状態/企業属性
+  
+- 仮定: $X$ 内で、事業所が閉鎖されるかどうかは、(労働者にとっては)ランダムに決まっている
+
+## 推定
+
+- 重回帰 $+$ Entropy Weighting
+
+- 推定値: Big Fiveの大部分は、失職について安定的
+
+  - 開放性は、失職により、上昇する
+
+## Reference

@@ -1,0 +1,468 @@
+---
+title: "Regression Discontinuity"
+subtitle: "労働経済学"
+author: "川田恵介"
+date: now
+format:
+  revealjs:
+    incremental: true 
+    slide-number: true
+    bibliographystyle: apa
+    html-math-method: katex
+    chalkboard: true
+  typst:
+    fig-format: retina
+    bibliographystyle: apa
+    mainfont: "Hiragino Mincho ProN"
+    number-sections: true
+bibliography: "ref.bib"
+execute: 
+  echo: false
+  warning: false
+  message: false
+  eval: true
+---
+
+# Get started
+
+```{r}
+library(tidyverse)
+library(rdrobust)
+library(rddensity)
+```
+
+## Regression Discontinuity
+
+- 局所的な実験的状況を活用する代表的手法
+
+  - "制度的な制約"による $D$ の局所的な変化を、自然実験として活用する
+
+## Example: @kawaguchi2017assessing
+
+- 労働時間規制は労働政策の大きな論点
+
+    - 労働時間の短縮は、一見(労働者にとって)望ましいが、副作用はないか？
+    
+- 研究課題: $Y=$ 実際の労働時間、賃金、ボーナス、従業員数
+
+  - 労働時間への規制 $(=D)$ が $Y$ に与える因果的影響
+
+## Example. 識別
+
+- 2017年時点で、労働時間は、週40時間、一日8時間に規制
+
+    - 超過するには、従業員代表との合意と残業代が必要
+    
+    - 1988年以前は週48時間であったものが、徐々に短縮
+    
+        - 1994年から1997年まで、従業員数が300以上の製造業の事業所では40時間、以下では44時間
+
+## Example: 識別
+
+- 従業員300人付近の企業における効果 $$= \underbrace{E[Y|X=300] - E[Y|X=299]}_{推定目標}$$
+
+  - 300人か299人で、法規制 $D$ は大きく異なる
+  
+  - たった一人の違いなので、背景属性の分布はほぼバランスしているはず
+
+## シンプルな実装
+
+```{r}
+#| echo: true
+library(tidyverse)
+library(rdrobust)
+library(rddensity)
+
+Data = readr::read_csv("Meyersson.csv")
+
+Fit = rdrobust(Data$lpop1994,Data$X)
+
+summary(Fit)
+```
+
+
+# 識別
+
+## 研究対象
+
+- $D$ の局所的な因果効果 $$E[y(1)-y(0)\mid Z=z]$$
+
+- $Z$ = 実数 (running variable)
+
+## 識別: Sharp discontinuity
+
+-  仮定: Cutoff $\bar{z}$ が存在し、 
+
+  - $$D=1 \iff Z\ge\bar{z}$$
+  
+  - $$D=0 \iff Z<\bar{z}$$
+
+## 識別: 
+
+- Post-treatment variables **以外**の観察できる/できない変数の分布はジャンプしない
+
+- 潜在結果の分布が急変しない
+
+$$\lim_{\epsilon\rightarrow 0}f(y(d)|\bar{z}+\epsilon)= \lim_{\epsilon\rightarrow 0}f(y(d)|\bar{z}-\epsilon)$$
+
+## Treatment effect on cutoff
+
+- $X=\bar{X}$ を満たす集団内での因果効果 $=$ $$\lim_{\epsilon\rightarrow 0}E[Y|\bar{z}+\epsilon]- E[Y|\bar{z}-\epsilon]$$ $$=E[y(1)|\bar{z}+\epsilon] - E[y(0)|\bar{z}-\epsilon]$$ 
+
+## Treatment effect on cutoff
+
+- $$= E[y(1)|\bar{z}] - E[y(0)|\bar{z}]$$ $$+\underbrace{E[y(1)|\bar{z}+\epsilon] - E[y(1)|\bar{z}]}_{\rightarrow 0}$$ $$-\underbrace{\bigr(E[y(0)|\bar{z}-\epsilon] - E[y(0)|\bar{z}]\bigr)}_{\rightarrow 0}$$
+
+
+## 解釈
+
+- $\bar{z}$ 上で実験が行われており、$Z$ は局所的にランダムに決まっている (Local randomization)
+    
+- あるいは、$Z$ が少し異なったとしても、結果変数は直接的な影響を受けない
+    
+## 注意: Multiple treatment
+
+- 他の"Treatment"の分布も変化しないことを仮定していることに注意
+
+- 例: $D=$ アルコール消費、$\bar{Z}=$ 20歳、$Y=$ 健康状態
+
+    - 他のTreatmentも変化する
+    
+## 注意: Manupulation
+
+- 背景属性分布もcutoff前後で"jump"するのであれば、因果効果が識別できない
+
+- $Z$ をcutoffの前後にmanupulateすることで、$D$ を"操作"しているのであれば、背景属性分布のjumpが疑われる
+    
+- 例: 労働時間規制を避けるために、一部の企業が従業員数を300名を超えないようにする
+
+    - より"greedy"な企業が、$X=299$ に固まってしまう
+
+## Example: @shigeoka2015school
+
+- 「"早生まれはどの程度有利か?"」研究において、学年が切り替わる日（日本の場合は、
+4月2日)がcutoffとして使われてきた
+
+    - 4月2日よりも少し早く生まれた VS 4月2日に生まれた
+    
+- manupulationは無いのか?
+
+    - 4月2日生まれが、その近傍に比べて、突出して多い
+
+## 注意: Local effect
+
+- 効果の異質性がある場合、 $Z=\bar{z}$ 内での因果効果のみが識別できていることに注意
+
+    - 局所的な効果であり、他のグループでは効果が大きく異なっても不思議ではない
+    
+- 例: 300人をcutoffにするのであれば、従業員数300名の企業への効果は識別される
+
+    - 5名の企業への効果と異なることが予想される
+
+# 推定値
+
+## 課題
+
+- $Z$ が $\bar{z}$ よりも少し低い/大きい集団内での$Y$の平均値を推定する必要がある
+
+    - $\bar{z}$ 内で$D=1/0$を比較することは不可能であり、難しいチャレンジ
+
+- $Y\sim Z$ を柔軟な方法で推定し、$E[Y|\bar{z}]$ を補完する
+
+## Visualization
+
+- まずは可視化
+
+- 例: @meyersson2014islamic
+
+    - トルコにおいて、宗教的保守派の市長が誕生することが、女性の就学に与える影響を推定
+    
+        - 政治的リーダーシップが社会に与える影響
+        
+- $Y=$ 地域内の高等教育を受けている女性割合(15-20)
+
+- $Z=$ 宗教的保守派の得票率
+
+    - cutoff $\bar{z}=50 \%$
+
+## Scatter plot
+
+```{r}
+Data = readr::read_csv("Meyersson.csv")
+
+Data |> 
+  ggplot(
+    aes(
+      x = X,
+      y = Y
+    )
+  ) +
+  geom_point(
+    alpha = 0.2
+  ) +
+  geom_vline(
+    xintercept = 0
+  ) +
+  theme_bw()
+```
+
+## Global polynomial
+
+- (他の手法と同様に)何らかの集計が必要
+
+- Cutoff $\bar{z}$ の前後にサンプルを分割する $Data_{-}=\{Z\le\bar{z}\},Data_{+}=\{Z>\bar{z}\}$
+
+- Global polynomial: 
+
+    - $Data_{-},Data_{+}$ それぞれについて、 $Y\sim poly(Z,p)$ を回帰する
+  
+    - $p=$ 次元数
+    
+        - $p=3$ であれば、 $Z,Z^2,Z^3$ までをモデルに投入
+    
+## Aggregation: Binplot
+
+- $Data_{-},Data_{+}$ それぞれについて、 $Z$ についてさらにサブグループを作成
+
+    - サブグループ内の$Y$の平均値を推定
+    
+- [rdrobust](https://rdpackages.github.io/rdrobust/) package
+
+    - サブグループの数を理論的基準に基づいて自動決定
+    
+        - 例えば「母平均を上手く近似する」ように決定
+        
+        - Defaultでは、$\bar{Z}=0$ と基準化
+
+## Example. 市長選挙
+
+```{r}
+rdrobust::rdplot(
+  Data$Y, 
+  Data$X, 
+  p = 0,
+  binselect = "es"
+  )
+```
+
+## Example. 市長選挙
+
+```{r}
+rdrobust::rdplot(
+  Data$Y, 
+  Data$X, 
+  p = 3,
+  binselect = "es"
+  )
+```
+
+
+## Example. 市長選挙
+
+```{r}
+#| echo: true
+lm(Y ~ X,
+   Data,
+   subset = X >= 0) # 得票率が50%以上
+
+lm(Y ~ X,
+   Data,
+   subset = X < 0)
+```
+
+## Example. 市長選挙
+
+```{r}
+#| echo: true
+lm(Y ~ X + I(X^2),
+   Data,
+   subset = X >= 0) # 得票率が50%以上
+
+lm(Y ~ X + I(X^2),
+   Data,
+   subset = X < 0)
+```
+
+## 定式化依存
+
+- 一般に、推定結果は定式化に依存
+
+  - $X$ は１変数であることを活かした別推定戦略が有益
+
+## Local regression
+
+- $E[Y|\bar{z}]$ のみ、正確に推定できれば良い
+
+    - $\bar{z}$ "付近"の事例のみを使えばいいのではないか?
+    
+- Local regression $$\min\sum \omega_i\times\biggr(Y - \beta_0 - \beta_1 Z - \beta_2 Z^2-..\biggr)^2$$
+
+- $\omega_i =$ (kernel) weight ($\bar{Z}$) 付近の事例について、大きな加重をつける
+
+## Kernel weight
+
+- いくつか選択肢がある
+
+- 最もシンプルなものとして、Uniform weight: 
+
+    - $=1$ if $X\in [\bar{Z} - h, \bar{Z} + h]$
+    
+    - $=0$ if $X\notin [\bar{Z} - h, \bar{Z} + h]$
+    
+    - $h=$ bindwidth (何らかのやり方で選ぶ必要がある)
+
+- Triangular/Epanechnikov weightをより推奨
+
+## Example. Local regression
+
+```{r}
+#| echo: true
+lm(Y ~ X,
+   Data,
+   subset = X >= 0 & X <= 5) # 得票率が50%以上
+
+lm(Y ~ X,
+   Data,
+   subset = X < 0 & X >= -5)
+```
+
+## Epanechnikov/Triangular weight
+
+```{r}
+tibble(
+  X = seq(-2,2,0.05),
+  Uniform = case_when(
+    X >= -1 & X <= 1 ~ 0.5,
+    .default = 0
+  ),
+  Triangular = case_when(
+    X >= -1 & X <= 1 ~ 1 - abs(X),
+    .default = 0
+  ),
+  Epanechnikov = case_when(
+    X >= -1 & X <= 1 ~ (3/4)*(1 - X^2),
+    .default = 0
+  )
+  ) |> 
+  ggplot(
+    aes(
+      x = X,
+      y = Uniform
+    )
+  ) +
+  theme_bw() +
+  geom_point(
+    aes(
+      color = "Uniform"
+    )
+  ) +
+  geom_point(
+    aes(
+      y = Triangular,
+      color = "Triangular"
+    )
+  ) +
+  geom_point(
+    aes(
+      y = Epanechnikov,
+      color = "Epanechnikov"
+    )
+  )
+```
+
+## Bandwidth selection
+
+- bandwidth をデータ主導で選ぶ方法については、多くの研究蓄積が存在
+
+    - Local average treatment effectの推定精度を最大化するように決定(したい) $$\min E[(\underbrace{\bar{\tau}}_{推定値} - \underbrace{\tau}_{真の値})^2]$$
+    
+- rdrobust packageが提供 (詳細は、[packageのHP参照](https://rdpackages.github.io/rdrobust/))
+
+    - 信頼区間の修正も提供
+
+## Example. 市長選挙
+
+```{r}
+#| echo: true
+Fit = rdrobust(
+  Data$Y,
+  Data$X,
+  p = 1) # Defaultでは、Triangular kernelを使用
+
+summary(Fit)
+```
+
+## Example. 市長選挙
+
+```{r}
+#| echo: true
+Fit = rdrobust(
+  Data$Y,
+  Data$X,
+  p = 2) # Defaultでは、Triangular kernelを使用
+
+summary(Fit)
+```
+
+## 実戦への推奨
+
+- Local regressionを使用
+
+    - Triangular kernelの使用
+    
+    - データ主導でBandwidthを選択 ($+$ 値を変えたrobustness check)
+    
+    - 推定結果を安定させるために、小さめの$p(=0,1)$ を使用 [@gelman2019high]
+
+# Diagnostic
+
+- Regression Disconiniutyの仮定の一部は、データから診断できる
+
+## Placebo test
+
+- Manupulationの存在が大きな課題
+
+    - 背景変数 (Treatmentの影響を受けない変数)を Placeboとして $Y$ 変数に使用し、 RD を適用
+    
+    - 顕著な"因果効果"が見られたら、Manupulationの存在を示唆
+    
+- 他にもcutoffの水準を変える (placebo cutoff)なども有益
+
+## Example. 市長選挙
+
+```{r}
+#| echo: true
+Fit = rdrobust(
+  Data$lpop1994, # 選挙前の人口
+  Data$X,
+  p = 1) # Defaultでは、Triangular kernelを使用
+
+summary(Fit)
+```
+
+
+## Density test
+
+- Cutoff の前後で、Densityがjumpしていれば、manupulationの証拠
+
+```{r}
+#| echo: true
+Fit = rddensity(Data$X) # Use rddensity package
+
+summary(Fit)
+```
+
+
+## まとめ
+
+- 優れた紹介文献
+
+    - https://titiunik.scholar.princeton.edu/publications2
+
+        - cutoffが複数あるケース/control変数の導入、などへの拡張されている
+
+- 大量のRunding variableとCutoffがある状況への拡張 [@abdulkadirouglu2022breaking]
+
+
+## Reference
+
