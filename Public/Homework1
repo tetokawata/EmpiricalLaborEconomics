@@ -1,0 +1,18 @@
+宿題1
+
+- 講義の内容を踏まえて、以下に答えよ
+
+1. CPS1985を用いて、性別(gender)間での賃金(wage)格差をOLSおよびDouble selectionで推定せよ。その際にeducation, age, ethnicityをコントロールせよ。
+
+2. どのような状況において、Double selection法は、OLSに比べて優位性があるのか、説明せよ
+
+3. OLSの代わりにLASSSO法を用いることの問題点を説明せよ
+
+
+- 提出方法: script fileをkeisukekawata@iss.u-tokyo.ac.jp まで送付
+
+    - メールのタイトルは、Homework1_学生番号、とすること
+
+        - タイトルを「労働経済学2...」などとはしないでください
+
+- 提出期限: 12月7日
